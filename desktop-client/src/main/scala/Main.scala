@@ -11,7 +11,6 @@ object Main extends IOApp {
       val webcam: Webcam = Webcam.getDefault()
       println(Webcam.getWebcams.asScala.toList.map(cam => cam.getName))
       webcam.open
-      webcam.close()
       ImageIO.write(webcam.getImage, "PNG", new File("hello-world.png"))
     }.as(ExitCode.Success)
 }

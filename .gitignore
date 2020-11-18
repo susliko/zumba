@@ -1,0 +1,5 @@
+desktop-client/target/
+desktop-client/project/
+desktop-client/.idea/
+desktop-client/.bsp/
+.idea/
