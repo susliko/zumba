@@ -1,1 +1,1 @@
-# Client application for `zumba` video-chat
+`zumba` video-chat
