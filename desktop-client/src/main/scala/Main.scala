@@ -10,8 +10,6 @@ import zio.clock._
 import zio.stream.ZStream
 
 object Main extends zio.App {
-//  ImageIO.write(webcam.getImage, "PNG", new File("hello-world.png"))
-
   def run(args: List[String]): URIO[ZEnv, ExitCode] = zstream
 
   def rawStream =
@@ -33,7 +31,8 @@ object Main extends zio.App {
   def zstream =
     for {
       start <- currentTime(TimeUnit.MILLISECONDS)
-      s <- Webcam.managed
+      s <- Webcam
+        .managed()
         .use(
           x =>
             (x.stream zip x.stream)
