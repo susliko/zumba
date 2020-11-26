@@ -13,7 +13,7 @@ import zio.clock._
 import zio.stream.ZStream
 
 object Main extends zio.App {
-  def run(args: List[String]): URIO[ZEnv, ExitCode] = audioStream
+  def run(args: List[String]): URIO[ZEnv, ExitCode] = audioStream.orDie
 
   def videoStream =
     for {
@@ -26,7 +26,6 @@ object Main extends zio.App {
               .take(10)
               .runDrain
         )
-        .ignore
       end <- currentTime(TimeUnit.MILLISECONDS)
       _ <- putStrLn((end - start).toString)
     } yield ExitCode.success
@@ -34,14 +33,11 @@ object Main extends zio.App {
   def audioStream =
     for {
       start <- currentTime(TimeUnit.MILLISECONDS)
-      s <- Microphone.managed
-        .use(
-          x =>
-            x.stream()
-//              .tap(b => Task(println(s"got byte $b")))
-              .runDrain
-        )
-        .ignore
+      names <- Microphone.names
+      _ <- putStrLn(names.toString)
+      s <- Microphone
+        .managed()
+        .use(x => x.stream().runDrain)
       end <- currentTime(TimeUnit.MILLISECONDS)
       _ <- putStrLn((end - start).toString)
     } yield ExitCode.success
