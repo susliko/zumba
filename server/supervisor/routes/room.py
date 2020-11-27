@@ -58,14 +58,14 @@ async def leave(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
         return room
 
 
-@room_router.get('/room/get/all/', response_model=Dict[str, Room])
+@room_router.get('/room/all/', response_model=Dict[str, Room])
 @catch_exceptions
 async def get_all_rooms(db: RedisClient = Depends(get_db)):
     rooms = await db.get_rooms()
     return rooms
 
 
-@room_router.get('/room/get/id/{room_id}/', response_model=Room)
+@room_router.get('/room/id/{room_id}/', response_model=Room)
 @catch_exceptions
 async def get_room_by_id(room_id: str, db: RedisClient = Depends(get_db)):
     id_to_room = await db.get_rooms()
