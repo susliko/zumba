@@ -31,7 +31,7 @@ async def join(body: RoomJoinBody, db: RedisClient = Depends(get_db)) -> Room:
     if room is None:
         raise HTTPException(detail=f'Room with id {body.room_id} not found', status_code=404)
     else:
-        room.users += body.user
+        room.users.append(body.user)
         id_to_room[room.id] = room
         await db.set_rooms(id_to_room)
         return room
