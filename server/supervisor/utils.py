@@ -1,9 +1,9 @@
-import string
 from functools import wraps
-from random import choice
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 from fastapi import HTTPException
+
+from supervisor.datas import Worker
 
 
 def catch_exceptions(func: Callable):
@@ -28,6 +28,9 @@ def catch_exceptions(func: Callable):
     return wrapper
 
 
-def random_short_id():
-    symbols = string.digits + string.ascii_lowercase
-    return ''.join(choice(symbols) for i in range(5))
+def choose_worker(id_to_worker: Dict[str, Worker]) -> Optional[Worker]:
+    if len(id_to_worker) == 0:
+        return None
+    fill_rate_with_worker = [(worker.filled / worker.capacity, worker) for worker in id_to_worker.values()]
+    worker = min(fill_rate_with_worker, key=lambda x: x[0])[1]
+    return worker

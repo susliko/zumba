@@ -1,8 +1,13 @@
+import string
+from random import choice
 from typing import List
 
 from pydantic import BaseModel
 
-from supervisor.utils import random_short_id
+
+def random_short_id():
+    symbols = string.digits + string.ascii_lowercase
+    return ''.join(choice(symbols) for _ in range(5))
 
 
 class Worker(BaseModel):
@@ -26,3 +31,9 @@ class RoomCreateBody(BaseModel):
 class RoomJoinBody(BaseModel):
     user: str
     room_id: str
+
+
+class WorkerCreateBody(BaseModel):
+    id: str
+    url: str
+    capacity: int = 1
