@@ -8,8 +8,8 @@ WORKDIR /usr/app
 COPY supervisor/requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt
 
-# add common
-COPY common/ common/
+## add common
+#COPY common/ common/
 
 # add app
 COPY supervisor/ supervisor/
