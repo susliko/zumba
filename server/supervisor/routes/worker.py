@@ -3,8 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from supervisor.datas import Worker
-from supervisor.db import RedisClient
-from supervisor.utils import catch_exceptions, get_db
+from supervisor.db import RedisClient, get_db
+from supervisor.utils import catch_exceptions
 
 worker_router = APIRouter()
 

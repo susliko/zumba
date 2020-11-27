@@ -6,6 +6,16 @@ from aioredis import Redis, create_redis
 from supervisor.config import config
 from supervisor.datas import Room, Worker
 
+
+async def get_db():
+    db = RedisClient()
+    await db.setup()
+    try:
+        yield db
+    finally:
+        await db.finalize()
+
+
 INIT_WORKERS = [Worker(id=0, url='')]
 
 

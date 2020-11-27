@@ -1,18 +1,9 @@
+import string
 from functools import wraps
+from random import choice
 from typing import Callable
 
 from fastapi import HTTPException
-
-from supervisor.db import RedisClient
-
-
-async def get_db():
-    db = RedisClient()
-    await db.setup()
-    try:
-        yield db
-    finally:
-        await db.finalize()
 
 
 def catch_exceptions(func: Callable):
@@ -35,3 +26,8 @@ def catch_exceptions(func: Callable):
             raise HTTPException(detail=repr(e), status_code=500)
 
     return wrapper
+
+
+def random_short_id():
+    symbols = string.digits + string.ascii_lowercase
+    return ''.join(choice(symbols) for i in range(5))

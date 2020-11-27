@@ -1,7 +1,8 @@
-import uuid
 from typing import List
 
 from pydantic import BaseModel
+
+from supervisor.utils import random_short_id
 
 
 class Worker(BaseModel):
@@ -12,8 +13,8 @@ class Worker(BaseModel):
 
 
 class Room(BaseModel):
-    id: str = str(uuid.uuid4())
-    users: List[str] = []  # todo: make set()
+    id: str = random_short_id()
+    users: List[str] = []  # todo: make set()?
     creator: str
     worker_id: str
 

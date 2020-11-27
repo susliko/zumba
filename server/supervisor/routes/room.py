@@ -1,10 +1,10 @@
-from typing import Dict, List
+from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from supervisor.datas import Room, RoomCreateBody, RoomJoinBody
-from supervisor.db import RedisClient
-from supervisor.utils import catch_exceptions, get_db
+from supervisor.db import RedisClient, get_db
+from supervisor.utils import catch_exceptions
 
 room_router = APIRouter()
 
