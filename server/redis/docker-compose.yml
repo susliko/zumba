@@ -1,0 +1,16 @@
+version: '3.5'
+
+services:
+  redis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - redis
+
+networks:
+  redis:
+    driver: bridge

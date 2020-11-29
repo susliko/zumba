@@ -1,0 +1,22 @@
+version: "3.5"
+
+services:
+  supervisor:
+    build:
+      context: .
+      dockerfile: ./supervisor/Dockerfile
+    command: ["/bin/bash", "-c", "gunicorn -k uvicorn.workers.UvicornWorker supervisor.main:app --bind 0.0.0.0:8080 --workers 4 --threads 8"]
+    ports:
+    - 8080:8080
+    restart: always
+    environment:
+      REDIS_DSN: redis://redis:6379
+    networks:
+      - redis_redis
+      - supervisor
+
+networks:
+  redis_redis:
+    external: true
+  supervisor:
+    driver: bridge
