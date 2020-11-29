@@ -1,10 +1,12 @@
-package webcam
+package media
+
 import java.awt.image.BufferedImage
 
 import cats.data.NonEmptyList
-import zio.stream.{Stream, ZStream}
-import zio._
 import com.github.sarxos.webcam.{Webcam => JWebcam}
+import zio._
+import zio.stream.Stream
+
 import scala.jdk.CollectionConverters._
 
 class Webcam(webcam: JWebcam) {
@@ -30,6 +32,7 @@ object Webcam {
         .getOrElse(throw new RuntimeException("No cameras available!"))
       val webcam = choose(cameras)
       webcam.open()
+      println(s"Using webcam ${webcam.getName}")
       new Webcam(webcam)
     })(_.close)
 

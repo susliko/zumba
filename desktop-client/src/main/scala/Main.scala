@@ -1,19 +1,14 @@
-import javax.imageio.ImageIO
-import java.io.File
-import java.net.{DatagramPacket, DatagramSocket}
 import java.util.concurrent.TimeUnit
 
-import com.github.sarxos.webcam.{Webcam => JWebcam}
-import javax.sound.sampled.AudioSystem
-import microphone.Microphone
-import webcam.Webcam
+import javax.sound.sampled.{AudioFormat, AudioSystem}
+import media._
 import zio._
-import zio.console._
 import zio.clock._
-import zio.stream.ZStream
+import zio.console._
 
 object Main extends zio.App {
-  def run(args: List[String]): URIO[ZEnv, ExitCode] = audioStream.orDie
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    playbackStream.orDie
 
   def videoStream =
     for {
@@ -30,30 +25,13 @@ object Main extends zio.App {
       _ <- putStrLn((end - start).toString)
     } yield ExitCode.success
 
-  def audioStream =
-    for {
-      start <- currentTime(TimeUnit.MILLISECONDS)
-      names <- Microphone.names
-      _ <- putStrLn(names.toString)
-      s <- Microphone
-        .managed()
-        .use(x => x.stream().runDrain)
-      end <- currentTime(TimeUnit.MILLISECONDS)
-      _ <- putStrLn((end - start).toString)
-    } yield ExitCode.success
-
-  def getMixers = UIO {
-    val infos = AudioSystem.getMixerInfo.toList
-    infos
-      .filter(info => {
-        val mixer = AudioSystem.getMixer(info)
-        val tg = mixer.getTargetLineInfo
-        if (tg.nonEmpty) println(tg.toList)
-        tg.toList.nonEmpty
-      })
-      .map(info => {
-        println(info.getName)
-        println(info.getDescription)
-      })
-  }
+  val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
+  def playbackStream =
+    Microphone
+      .managed(_.toList.drop(1).head, audioFormat)
+      .zip(Playback.managed(_.last, audioFormat))
+      .use {
+        case (mic, play) => mic.stream(1024).run(play.sink)
+      }
+      .as(ExitCode.success)
 }

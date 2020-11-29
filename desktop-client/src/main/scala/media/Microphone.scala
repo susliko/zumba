@@ -1,4 +1,5 @@
-package microphone
+package media
+
 import cats.data.NonEmptyList
 import javax.sound.sampled._
 import zio._
@@ -9,11 +10,10 @@ import scala.util.Try
 
 class Microphone(line: TargetDataLine) {
   def stream(chunkSize: Int = 128): ZStream[Blocking, Throwable, Byte] =
-    Stream.fromEffect(Task(line.start())) *> Stream.fromInputStream({
-      val s = new AudioInputStream(line)
-      println(s.getFormat)
-      s
-    }, chunkSize)
+    Stream.fromEffect(Task(line.start())) *> Stream.fromInputStream(
+      new AudioInputStream(line),
+      chunkSize
+    )
 
   def format: UIO[AudioFormat] = UIO(line.getFormat)
 
@@ -21,18 +21,18 @@ class Microphone(line: TargetDataLine) {
 }
 
 object Microphone {
-  val format = new AudioFormat(8000.0f, 16, 1, true, true)
-
   def names: Task[List[String]] = Task {
     AudioSystem.getMixerInfo.toList
       .filter(
-        info => Try(AudioSystem.getTargetDataLine(format, info)).isSuccess
+        info =>
+          Try(AudioSystem.getTargetDataLine(defaultAudioFormat, info)).isSuccess
       )
       .map(_.getDescription)
   }
 
   def managed(
-    choose: NonEmptyList[Mixer.Info] => Mixer.Info = _.head
+    choose: NonEmptyList[Mixer.Info] => Mixer.Info = _.head,
+    format: AudioFormat = defaultAudioFormat
   ): TaskManaged[Microphone] =
     ZManaged.make(Task {
       val mixerInfos = NonEmptyList
@@ -47,9 +47,13 @@ object Microphone {
       val mixerInfo = choose(mixerInfos)
       val line = AudioSystem.getTargetDataLine(format, mixerInfo)
       line.open()
+      println(s"Using microphone ${mixerInfo.getDescription}")
       new Microphone(line)
     })(_.close)
 
-  def managedByName(name: String): TaskManaged[Microphone] =
+  def managedByName(
+    name: String,
+    format: AudioFormat = defaultAudioFormat
+  ): TaskManaged[Microphone] =
     managed(_.find(_.getDescription == name).get)
 }
