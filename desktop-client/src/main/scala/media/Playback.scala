@@ -12,8 +12,6 @@ class Playback(line: SourceDataLine) {
     Sink.foldChunksM[Any, Throwable, Byte, Unit](())(_ => true) {
       case (_, chunk) =>
         Task(line.write(chunk.toArray, 0, chunk.length)).unit
-          .tap(_ => UIO(println(chunk.toList)))
-          .tap(_ => UIO(println(line.available())))
     }
   private def close: UIO[Unit] = UIO(line.close())
 

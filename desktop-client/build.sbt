@@ -10,9 +10,10 @@ addCompilerPlugin(
 )
 
 libraryDependencies ++= Seq(
-  "ru.tinkoff" %% "tofu" % "0.8.0",
   "dev.zio" %% "zio" % "1.0.3",
   "dev.zio" %% "zio-streams" % "1.0.3",
+  "dev.zio" %% "zio-nio" % "1.0.0-RC10",
+  "com.softwaremill.sttp.client3" %% "core" % "3.0.0-RC10",
   "org.manatki" %% "derevo-circe" % "0.11.5",
   "com.github.sarxos" % "webcam-capture" % "0.3.10"
 )
