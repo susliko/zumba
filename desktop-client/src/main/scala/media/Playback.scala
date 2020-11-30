@@ -9,7 +9,7 @@ import scala.util.Try
 
 class Playback(line: SourceDataLine) {
   def sink: Sink[Throwable, Byte, Byte, Unit] =
-    Sink.foldChunksM[Any, Throwable, Byte, Unit](())(_ => true) {
+    Sink.foldLeftChunksM[Any, Throwable, Byte, Unit](()) {
       case (_, chunk) =>
         Task(line.write(chunk.toArray, 0, chunk.length)).unit
     }
