@@ -1,4 +1,4 @@
-package server
+package web
 import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax._
@@ -7,7 +7,7 @@ import zio._
 import sttp.client3._
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 
-case class Server(backend: HttpClientZioBackend, url: String) {
+case class RoomClient(backend: HttpClientZioBackend, url: String) {
   def createRoom(creator: String): Task[Room] =
     makeReq(CreateRoom(creator), "/room/create")
   def joinRoom(user: String, room_id: String): Task[Room] =
