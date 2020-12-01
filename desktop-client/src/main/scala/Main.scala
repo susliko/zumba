@@ -9,36 +9,31 @@ import zio.console._
 
 object Main extends zio.App {
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    udpPlaybackStream.orDie
-
-  def videoStream =
-    for {
-      start <- currentTime(TimeUnit.MILLISECONDS)
-      s <- Webcam
-        .managed()
-        .use(
-          x =>
-            (x.stream zip x.stream)
-              .take(10)
-              .runDrain
-        )
-      end <- currentTime(TimeUnit.MILLISECONDS)
-      _ <- putStrLn((end - start).toString)
-    } yield ExitCode.success
-
-  val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
-
-  def playbackStream =
-    Microphone
-      .managed(_.toList.drop(1).head, audioFormat)
-      .zip(Playback.managed(_.last, audioFormat))
-      .use {
-        case (mic, play) => mic.stream(128).run(play.sink)
-      }
-      .as(ExitCode.success)
+    udpVideoStream.orDie
 
   val port = 8282
-  val chunkSize = 8
+  val videoBufferSize = 1024 * 64
+  val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
+  val audioBufferSize = 8
+
+  def udpVideoStream =
+    Webcam
+      .managed()
+      .use(
+        cam =>
+          MediaServer
+            .accept(port, videoBufferSize)
+            .map(ImageCodec.decode)
+            .tap(i => UIO(println(i)))
+            .runDrain
+            .forkDaemon *>
+            cam.stream
+              .mapConcatChunk(ImageCodec.encode(_, 42))
+              .flattenChunks
+              .run(MediaClient.mediaSink("localhost", port))
+      )
+      .as(ExitCode.success)
+
   def udpPlaybackStream =
     Microphone
       .managed(_.toList.drop(1).head, audioFormat)
@@ -46,12 +41,12 @@ object Main extends zio.App {
       .use {
         case (mic, play) =>
           MediaServer
-            .accept(port, chunkSize)
+            .accept(port, audioBufferSize)
             .flattenChunks
             .run(play.sink)
             .forkDaemon *>
             mic
-              .stream(chunkSize)
+              .stream(audioBufferSize)
               .run(MediaClient.mediaSink("localhost", port))
       }
       .as(ExitCode.success)

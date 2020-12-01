@@ -30,8 +30,7 @@ object MediaServer {
               buffer =>
                 Stream
                   .fromEffect(
-                    channel.receive(buffer) *> buffer.rewind *> buffer
-                      .getChunk()
+                    channel.receive(buffer) *> buffer.flip *> buffer.getChunk()
                 )
             )
             .forever
