@@ -27,5 +27,9 @@ libraryDependencies ++= Seq(
 ).map(_ % "0.14.0-M1")
 
 assemblyJarName in assembly := "zumba.jar"
-assemblyOutputPath in assembly := file(".")
+assemblyOutputPath in assembly := file("./zumba.jar")
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
 mainClass in assembly := Some("ui.Main")
