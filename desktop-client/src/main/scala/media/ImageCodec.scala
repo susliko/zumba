@@ -1,32 +1,18 @@
 package media
 import java.awt.image.BufferedImage
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, File}
-import java.net.URL
-import java.nio.ByteBuffer
-import zio.Chunk
-import javax.imageio.{IIOImage, ImageIO, ImageWriteParam}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
-case class ImageHeader(userId: Int, x: Byte, y: Byte) {
-  def toBytes: Chunk[Byte] =
-    Chunk(0.toByte) ++
-      ImageHeader.intToBytes(userId) ++
-      Chunk(x, y)
+import javax.imageio.{IIOImage, ImageIO, ImageWriteParam}
+import zio.Chunk
+
+case class ImageHeader(roomId: Byte, userId: Byte, x: Byte, y: Byte) {
+  def toBytes: Chunk[Byte] = Chunk(roomId, userId, x, y)
 }
 
 object ImageHeader {
+  val size = 4
   def fromBytes(bytes: Chunk[Byte]) =
-    ImageHeader(bytesToInt(bytes.slice(1, 5)), bytes(5), bytes(6))
-
-  private def bytesToInt(bytes: Chunk[Byte]): Int = {
-    ByteBuffer.wrap(bytes.toArray).getInt
-  }
-  private def intToBytes(x: Int): Chunk[Byte] =
-    Chunk(
-      ((x >> 24) & 0xff).toByte,
-      ((x >> 16) & 0xff).toByte,
-      ((x >> 8) & 0xff).toByte,
-      ((x >> 0) & 0xff).toByte
-    )
+    ImageHeader(bytes(0), bytes(1), bytes(2), bytes(3))
 }
 
 case class ImageSegment(header: ImageHeader, image: BufferedImage) {
@@ -35,20 +21,21 @@ case class ImageSegment(header: ImageHeader, image: BufferedImage) {
 
   private def compress(image: BufferedImage, quality: Float): Chunk[Byte] = {
     val jpgWriter = ImageIO.getImageWritersByFormatName("JPEG").next
-    val jpgWriteParam = jpgWriter.getDefaultWriteParam
-    jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
-    jpgWriteParam.setCompressionQuality(quality)
+    val jpgParams = jpgWriter.getDefaultWriteParam
+    jpgParams.setCompressionMode(ImageWriteParam.MODE_EXPLICIT)
+    jpgParams.setCompressionQuality(quality)
     val baos = new ByteArrayOutputStream()
     jpgWriter.setOutput(ImageIO.createImageOutputStream(baos))
     val outputImage = new IIOImage(image, null, null)
-    jpgWriter.write(null, outputImage, jpgWriteParam)
+    jpgWriter.write(null, outputImage, jpgParams)
     Chunk.fromArray(baos.toByteArray)
   }
 }
 
 object ImageCodec {
   def encode(image: BufferedImage,
-             userId: Int,
+             roomId: Byte,
+             userId: Byte,
              nTiles: Byte = 3,
              quality: Float = 0.3f): Chunk[Chunk[Byte]] = {
     val tileW = image.getWidth / nTiles;
@@ -57,15 +44,15 @@ object ImageCodec {
       for (i <- 0 until nTiles; j <- 0 until nTiles)
         yield
           ImageSegment(
-            ImageHeader(userId, i.toByte, j.toByte),
+            ImageHeader(roomId, userId, i.toByte, j.toByte),
             image.getSubimage(i * tileW, j * tileH, tileW, tileH)
           ).toBytes(quality)
     )
   }
 
   def decode(bytes: Chunk[Byte]): ImageSegment = {
-    val bais = new ByteArrayInputStream(bytes.drop(7).toArray)
+    val bais = new ByteArrayInputStream(bytes.drop(ImageHeader.size).toArray)
     val image = ImageIO.read(bais)
-    ImageSegment(ImageHeader.fromBytes(bytes.take(7)), image)
+    ImageSegment(ImageHeader.fromBytes(bytes.take(ImageHeader.size)), image)
   }
 }
