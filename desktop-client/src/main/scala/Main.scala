@@ -1,20 +1,17 @@
-import java.util.concurrent.TimeUnit
-
-import javax.sound.sampled.{AudioFormat, AudioSystem}
+import javax.sound.sampled.AudioFormat
 import media._
 import web.{MediaClient, MediaServer}
 import zio._
-import zio.clock._
-import zio.console._
 
 object Main extends zio.App {
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    udpVideoStream.orDie
+    udpPlaybackStream.orDie
 
   val port = 8282
   val videoBufferSize = 1024 * 64
   val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
-  val audioBufferSize = 8
+  val audioChunkSize = 8
+  val audioBufferSize = 16
 
   def udpVideoStream =
     Webcam
@@ -28,7 +25,7 @@ object Main extends zio.App {
             .runDrain
             .forkDaemon *>
             cam.stream
-              .mapConcatChunk(ImageCodec.encode(_, 42))
+              .mapConcatChunk(ImageCodec.encode(_, 21, 42))
               .flattenChunks
               .run(MediaClient.mediaSink("localhost", port))
       )
@@ -42,11 +39,14 @@ object Main extends zio.App {
         case (mic, play) =>
           MediaServer
             .accept(port, audioBufferSize)
-            .flattenChunks
+            .map(AudioCodec.decode)
+            .tap(c => UIO(println(c)))
+            .mapConcatChunk(_.audio)
             .run(play.sink)
             .forkDaemon *>
             mic
-              .stream(audioBufferSize)
+              .stream(audioChunkSize)
+              .mapChunks(AudioCodec.encode(_, 21, 42))
               .run(MediaClient.mediaSink("localhost", port))
       }
       .as(ExitCode.success)
