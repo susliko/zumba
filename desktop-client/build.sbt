@@ -25,3 +25,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-parser"
 ).map(_ % "0.14.0-M1")
+
+assemblyJarName in assembly := "zumba.jar"
+assemblyOutputPath in assembly := file(".")
+mainClass in assembly := Some("ui.Main")
