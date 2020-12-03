@@ -60,10 +60,10 @@ func (server *HTTPServer) Run(ctx context.Context) error {
 
 	r.Get("/ping", server.Ping)
 
-	r.Get("/start_conference", server.StartConference)
-	r.Get("/stop_conference", server.StopConference)
-	r.Get("/add_user", server.AddUser)
-	r.Get("/remove_user", server.RemoveUser)
+	r.Post("/start_conference", server.StartConference)
+	r.Delete("/stop_conference", server.StopConference)
+	r.Post("/add_user", server.AddUser)
+	r.Delete("/remove_user", server.RemoveUser)
 	r.Get("/list_conferences", server.ListConferences)
 
 	srv := http.Server{
