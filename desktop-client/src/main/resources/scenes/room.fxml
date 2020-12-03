@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.VBox?>
+
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.TilePane?>
+<BorderPane
+        xmlns="http://javafx.com/javafx"
+        xmlns:fx="http://javafx.com/fxml"
+        prefWidth="Infinity"
+        prefHeight="Infinity"
+>
+    <top>
+        <HBox style="-fx-background-color: #333333; -fx-text-fill: #dddddd">
+            <Label>Zumba</Label>
+        </HBox>
+    </top>
+    <left>
+        <VBox style="-fx-background-color: #333333;" prefWidth="30"/>
+    </left>
+    <center>
+        <ScrollPane hbarPolicy="NEVER" prefWidth="Infinity" prefHeight="Infinity" fitToHeight="true" fitToWidth="true">
+            <TilePane fx:id="tilesPane" style="-fx-background-color: #111111;" prefWidth="Infinity" alignment="CENTER">
+            </TilePane>
+        </ScrollPane>
+    </center>
+    <right>
+        <VBox alignment="TOP_CENTER">
+            <Button fx:id="addOne" text="+" onAction="#addOne"/>
+            <Button fx:id="removeOne" text="-" onAction="#removeOne"/>
+        </VBox>
+    </right>
+</BorderPane>
