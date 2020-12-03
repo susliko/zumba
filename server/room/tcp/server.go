@@ -16,12 +16,12 @@ import (
 )
 
 type conferenceRequest struct {
-	Conference *int8	`json:"conference"`
+	Conference *uint8	`json:"conference"`
 }
 
 type userRequest struct {
-	Conference *int8	`json:"conference"`
-	User	   *int8	`json:"user"`
+	Conference *uint8	`json:"conference"`
+	User	   *uint8	`json:"user"`
 }
 
 type HTTPServerConfig struct {

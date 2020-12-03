@@ -22,7 +22,8 @@ func run(logger *zap.SugaredLogger) error {
 	httpServer := tcp.NewHTTPServer(logger, httpServerConfig, conferenceMap)
 
 	udpServerConfig := udp.NewDefaultServerConfig()
-	updServer := udp.NewServer(logger, udpServerConfig)
+	cache := udp.NewAddressCache()
+	updServer := udp.NewServer(logger, udpServerConfig, conferenceMap, cache)
 
 	ctx, cancel := context.WithCancel(ctx)
 	wg, ctx := errgroup.WithContext(ctx)
