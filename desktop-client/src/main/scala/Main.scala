@@ -10,7 +10,7 @@ object Main extends zio.App {
   val serverHost = "143.110.168.156"
   val port = 5001
   val videoBufferSize = 1024 * 64
-  val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
+  val audioFormat = new AudioFormat(8000.0f, 16, 1, true, true)
   val audioChunkSize = 8
   val audioBufferSize = 16
 
@@ -21,11 +21,12 @@ object Main extends zio.App {
         case (webcam, client) =>
           client
             .acceptStream(videoBufferSize)
+            .map(_.toRaster)
             .tap(i => UIO(println(i)))
             .runDrain
             .forkDaemon *>
             webcam.stream
-              .mapConcatChunk(ImageSegment.fromImage(_, 21, 42))
+              .mapConcatChunk(ImageSegment.fromImage(_, 21, 107))
               .run(client.sendSink("localhost", port))
       }
       .as(ExitCode.success)
@@ -45,7 +46,7 @@ object Main extends zio.App {
             .forkDaemon *>
             mic
               .stream(audioChunkSize)
-              .mapChunks(chunk => Chunk(AudioSegment(AudioHeader(1, 2), chunk)))
+              .mapChunks(chunk => Chunk(AudioSegment(AudioHeader(1, 1), chunk)))
               .run(client.sendSink(serverHost, port))
       }
       .as(ExitCode.success)
