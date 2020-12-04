@@ -7,7 +7,8 @@ object Main extends zio.App {
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     udpPlaybackStream.orDie
 
-  val port = 8282
+  val serverHost = "143.110.168.156"
+  val port = 5001
   val videoBufferSize = 1024 * 64
   val audioFormat = new AudioFormat(16000.0f, 16, 1, true, true)
   val audioChunkSize = 8
@@ -45,7 +46,7 @@ object Main extends zio.App {
             mic
               .stream(audioChunkSize)
               .mapChunks(chunk => Chunk(AudioSegment(AudioHeader(1, 2), chunk)))
-              .run(client.sendSink("localhost", port))
+              .run(client.sendSink(serverHost, port))
       }
       .as(ExitCode.success)
 }
