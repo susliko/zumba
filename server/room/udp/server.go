@@ -113,10 +113,11 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 				continue
 			}
 			server.cache.Save(msg.User, addr)
+			server.logger.Infof("received msg for conference %d from user %d", msg.Conference, msg.User)
 
 			users, err := server.conferenceMap.GetConferenceUsers(msg.Conference)
  			if err != nil {
- 				server.logger.Error("while gettin conference users an error occurred: %v", err)
+ 				server.logger.Errorf("while getting conference users an error occurred: %v", err)
  				continue
 			}
 
