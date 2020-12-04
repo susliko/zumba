@@ -1,7 +1,7 @@
 package ui
 
 import javafx.application.Application
-import javafx.scene.layout.{AnchorPane, BorderPane, VBox}
+import javafx.scene.layout.BorderPane
 import javafx.stage.Stage
 import zio.blocking._
 import zio.console._

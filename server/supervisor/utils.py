@@ -3,7 +3,8 @@ from typing import Callable, Dict, Optional
 
 from fastapi import HTTPException
 
-from supervisor.datas import Worker
+from supervisor.datas import User, Worker
+from supervisor.db import RedisClient
 
 
 def catch_exceptions(func: Callable):
@@ -28,9 +29,17 @@ def catch_exceptions(func: Callable):
     return wrapper
 
 
-def choose_worker(id_to_worker: Dict[str, Worker]) -> Optional[Worker]:
+def choose_worker(id_to_worker: Dict[int, Worker]) -> Optional[Worker]:
     if len(id_to_worker) == 0:
         return None
     fill_rate_with_worker = [(worker.filled / worker.capacity, worker) for worker in id_to_worker.values()]
     worker = min(fill_rate_with_worker, key=lambda x: x[0])[1]
     return worker
+
+
+async def get_user(user_id: int, db: RedisClient) -> User:
+    id_to_user = await db.get_users()
+    if user_id in id_to_user:
+        return id_to_user[user_id]
+    else:
+        raise HTTPException(detail=f'User with id {user_id} not found', status_code=404)

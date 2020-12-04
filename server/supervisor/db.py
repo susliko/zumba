@@ -1,10 +1,11 @@
 import json
-from typing import Dict, List, Optional
+import random
+from typing import Dict, Optional
 
 from aioredis import Redis, create_redis
 
 from supervisor.config import config
-from supervisor.datas import Room, Worker
+from supervisor.datas import Room, User, Worker
 
 
 async def get_db():
@@ -14,6 +15,10 @@ async def get_db():
         yield db
     finally:
         await db.finalize()
+
+
+ALL_ROOMS_IDS = set(range(256))
+ALL_USERS_IDS = set(range(256))
 
 
 class RedisClient:
@@ -30,20 +35,43 @@ class RedisClient:
 
     # Rooms
 
-    async def get_rooms(self) -> Dict[str, Room]:
+    async def get_rooms(self) -> Dict[int, Room]:
         id_to_room_raw = await self.redis.get('rooms')
         id_to_room = json.loads(id_to_room_raw if id_to_room_raw is not None else '{}')
-        return {id: Room.parse_raw(room) for id, room in id_to_room.items()}
+        return {int(id): Room.parse_raw(room) for id, room in id_to_room.items()}
 
-    async def set_rooms(self, id_to_room: Dict[str, Room]) -> None:
+    async def set_rooms(self, id_to_room: Dict[int, Room]) -> None:
         await self.redis.set('rooms', json.dumps({id: room.json() for id, room in id_to_room.items()}))
+
+    async def get_rooms_free_id(self) -> int:
+        id_to_room_raw = await self.redis.get('rooms')
+        id_to_room = json.loads(id_to_room_raw if id_to_room_raw is not None else '{}')
+        return random.choice(list(ALL_ROOMS_IDS.difference(id_to_room.keys())))
 
     # Workers
 
-    async def get_workers(self) -> Dict[str, Worker]:
+    async def get_workers(self) -> Dict[int, Worker]:
         id_to_worker_raw = await self.redis.get('workers')
         id_to_worker = json.loads(id_to_worker_raw if id_to_worker_raw is not None else '{}')
-        return {id: Worker.parse_raw(worker) for id, worker in id_to_worker.items()}
+        return {int(id): Worker.parse_raw(worker) for id, worker in id_to_worker.items()}
 
-    async def set_workers(self, id_to_worker: Dict[str, Worker]) -> None:
+    async def set_workers(self, id_to_worker: Dict[int, Worker]) -> None:
         await self.redis.set('workers', json.dumps({id: worker.json() for id, worker in id_to_worker.items()}))
+
+    # Users
+
+    async def get_users(self) -> Dict[int, User]:
+        id_to_user_raw = await self.redis.get('users')
+        id_to_user = json.loads(id_to_user_raw if id_to_user_raw is not None else '{}')
+        return {int(id): User.parse_raw(user) for id, user in id_to_user.items()}
+
+    async def set_users(self, id_to_user: Dict[int, User]) -> None:
+        await self.redis.set('users', json.dumps({id: user.json() for id, user in id_to_user.items()}))
+
+    async def get_users_free_id(self) -> int:
+        id_to_user_raw = await self.redis.get('users')
+        id_to_user = json.loads(id_to_user_raw if id_to_user_raw is not None else '{}')
+        id = random.choice(list(ALL_USERS_IDS.difference(id_to_user.keys())))
+        return id
+
+
