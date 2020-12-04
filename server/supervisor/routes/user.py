@@ -21,7 +21,7 @@ async def create_user(name: str, db: RedisClient = Depends(get_db)):
 
 @user_router.post('/user/remove/')
 @catch_exceptions
-async def remove_user(user_id: str, db: RedisClient = Depends(get_db)):
+async def remove_user(user_id: int, db: RedisClient = Depends(get_db)):
     id_to_user = await db.get_users()
     id_to_user.pop(user_id)
     await db.set_users(id_to_user)

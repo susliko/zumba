@@ -6,12 +6,9 @@ from supervisor.datas import Room, RoomCreateBody, RoomJoinBody
 from supervisor.db import RedisClient, get_db
 from supervisor.utils import catch_exceptions, choose_worker, get_user
 
-from supervisor.worker_client import SpeechlessWorkerClientAsync
+from supervisor.worker_client import SpeechlessWorkerClientAsync, get_client
 
 room_router = APIRouter()
-
-
-worker_client = SpeechlessWorkerClientAsync('localhost', 5000)
 
 
 @room_router.post('/room/create/')
@@ -23,7 +20,7 @@ async def create(body: RoomCreateBody, db: RedisClient = Depends(get_db)):
     if worker is None:
         raise HTTPException(detail=f'No resources to create room, try later', status_code=503)
 
-    new_room = Room(creator_id=body.user_id, worker_id=worker.id, users=[body.user_id])
+    new_room = Room(creator_id=body.user_id, worker_id=worker.id, users={body.user_id})
 
     id_to_room = await db.get_rooms()
     id_to_room[new_room.id] = new_room
@@ -31,8 +28,13 @@ async def create(body: RoomCreateBody, db: RedisClient = Depends(get_db)):
     worker.filled += 1
     id_to_worker[worker.id] = worker
 
+    worker_client = get_client(worker.host, worker.api_port)
+    await worker_client.start_conference(room_id=new_room.id)
+    await worker_client.add_user(user_id=body.user_id, room_id=new_room.id)
+
     await db.set_rooms(id_to_room)
     await db.set_workers(id_to_worker)
+
     return {
         'room_id': new_room.id,
         'worker_host': worker.host,
@@ -50,7 +52,7 @@ async def join(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
     if room is None:
         raise HTTPException(detail=f'Room with id {body.room_id} not found', status_code=404)
     else:
-        room.users.append(body.user_id)
+        room.users.add(body.user_id)
         id_to_room[room.id] = room
 
         id_to_worker = await db.get_workers()
@@ -59,6 +61,9 @@ async def join(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
         else:
             worker = choose_worker(id_to_worker)
             room.worker_id = worker.id
+
+        worker_client = get_client(worker.host, worker.api_port)
+        await worker_client.add_user(user_id=body.user_id, room_id=room.id)
 
         await db.set_rooms(id_to_room)
 
@@ -80,7 +85,15 @@ async def leave(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
     else:
         room.users.remove(body.user_id)
         id_to_room[room.id] = room
+
+        id_to_worker = await db.get_workers()
+        if room.worker_id in id_to_worker:
+            worker = id_to_worker[room.worker_id]
+            worker_client = get_client(worker.host, worker.api_port)
+            await worker_client.remove_user(user_id=body.user_id, room_id=room.id)
+
         await db.set_rooms(id_to_room)
+
         return room
 
 
@@ -88,13 +101,12 @@ async def leave(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
 @catch_exceptions
 async def get_all_rooms(db: RedisClient = Depends(get_db)):
     rooms = await db.get_rooms()
-    await worker_client.ping()
     return rooms
 
 
 @room_router.get('/room/id/{room_id}/')
 @catch_exceptions
-async def get_room_by_id(room_id: str, db: RedisClient = Depends(get_db)):
+async def get_room_by_id(room_id: int, db: RedisClient = Depends(get_db)):
     id_to_room = await db.get_rooms()
     room = id_to_room.get(room_id)
     if room is None:

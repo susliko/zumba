@@ -29,7 +29,7 @@ def catch_exceptions(func: Callable):
     return wrapper
 
 
-def choose_worker(id_to_worker: Dict[str, Worker]) -> Optional[Worker]:
+def choose_worker(id_to_worker: Dict[int, Worker]) -> Optional[Worker]:
     if len(id_to_worker) == 0:
         return None
     fill_rate_with_worker = [(worker.filled / worker.capacity, worker) for worker in id_to_worker.values()]
@@ -37,9 +37,8 @@ def choose_worker(id_to_worker: Dict[str, Worker]) -> Optional[Worker]:
     return worker
 
 
-async def get_user(user_id: str, db: RedisClient) -> User:
+async def get_user(user_id: int, db: RedisClient) -> User:
     id_to_user = await db.get_users()
-    print(user_id, id_to_user, flush=True)
     if user_id in id_to_user:
         return id_to_user[user_id]
     else:
