@@ -1,5 +1,6 @@
 import json
-from typing import Dict, List, Optional
+import random
+from typing import Dict, Optional
 
 from aioredis import Redis, create_redis
 
@@ -14,6 +15,10 @@ async def get_db():
         yield db
     finally:
         await db.finalize()
+
+
+ALL_ROOMS_IDS = set(range(256))
+ALL_USERS_IDS = set(range(256))
 
 
 class RedisClient:
@@ -38,6 +43,11 @@ class RedisClient:
     async def set_rooms(self, id_to_room: Dict[int, Room]) -> None:
         await self.redis.set('rooms', json.dumps({id: room.json() for id, room in id_to_room.items()}))
 
+    async def get_rooms_free_id(self) -> int:
+        id_to_room_raw = await self.redis.get('rooms')
+        id_to_room = json.loads(id_to_room_raw if id_to_room_raw is not None else '{}')
+        return random.choice(list(ALL_ROOMS_IDS.difference(id_to_room.keys())))
+
     # Workers
 
     async def get_workers(self) -> Dict[int, Worker]:
@@ -57,5 +67,11 @@ class RedisClient:
 
     async def set_users(self, id_to_user: Dict[int, User]) -> None:
         await self.redis.set('users', json.dumps({id: user.json() for id, user in id_to_user.items()}))
+
+    async def get_users_free_id(self) -> int:
+        id_to_user_raw = await self.redis.get('users')
+        id_to_user = json.loads(id_to_user_raw if id_to_user_raw is not None else '{}')
+        id = random.choice(list(ALL_USERS_IDS.difference(id_to_user.keys())))
+        return id
 
 

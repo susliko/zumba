@@ -13,7 +13,7 @@ user_router = APIRouter()
 @catch_exceptions
 async def create_user(name: str, db: RedisClient = Depends(get_db)):
     id_to_user = await db.get_users()
-    new_user = User(name=name)
+    new_user = User(name=name, id=await db.get_users_free_id())
     id_to_user[new_user.id] = new_user
     await db.set_users(id_to_user)
     return new_user

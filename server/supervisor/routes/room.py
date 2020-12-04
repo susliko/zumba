@@ -20,7 +20,7 @@ async def create(body: RoomCreateBody, db: RedisClient = Depends(get_db)):
     if worker is None:
         raise HTTPException(detail=f'No resources to create room, try later', status_code=503)
 
-    new_room = Room(creator_id=body.user_id, worker_id=worker.id, users={body.user_id})
+    new_room = Room(creator_id=body.user_id, worker_id=worker.id, users={body.user_id}, id=await db.get_rooms_free_id())
 
     id_to_room = await db.get_rooms()
     id_to_room[new_room.id] = new_room

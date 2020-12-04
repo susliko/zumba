@@ -1,11 +1,6 @@
-from random import randint
-from typing import List, Set
+from typing import Set
 
 from pydantic import BaseModel
-
-
-def generate_id() -> int:
-    return randint(0, 256)
 
 
 class Worker(BaseModel):
@@ -20,14 +15,14 @@ class Worker(BaseModel):
 
 
 class Room(BaseModel):
-    id: int = generate_id()
+    id: int
     users: Set[int] = set()
     creator_id: int
     worker_id: int
 
 
 class User(BaseModel):
-    id: int = generate_id()
+    id: int
     name: str
 
 
