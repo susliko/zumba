@@ -1,6 +1,6 @@
 import javax.sound.sampled.AudioFormat
 import media._
-import web.{MediaClient, MediaServer}
+import web.MediaClient
 import zio._
 
 object Main extends zio.App {
@@ -14,40 +14,38 @@ object Main extends zio.App {
   val audioBufferSize = 16
 
   def udpVideoStream =
-    Webcam
-      .managed()
-      .use(
-        cam =>
-          MediaServer
-            .accept(port, videoBufferSize)
-            .map(ImageCodec.decode)
+    (Webcam
+      .managed() zip MediaClient.managed[ImageSegment](port))
+      .use {
+        case (webcam, client) =>
+          client
+            .acceptStream(videoBufferSize)
             .tap(i => UIO(println(i)))
             .runDrain
             .forkDaemon *>
-            cam.stream
-              .mapConcatChunk(ImageCodec.encode(_, 21, 42))
-              .flattenChunks
-              .run(MediaClient.mediaSink("localhost", port))
-      )
+            webcam.stream
+              .mapConcatChunk(ImageSegment.fromImage(_, 21, 42))
+              .run(client.sendSink("localhost", port))
+      }
       .as(ExitCode.success)
 
   def udpPlaybackStream =
     Microphone
       .managed(_.toList.drop(1).head, audioFormat)
       .zip(Playback.managed(_.last, audioFormat))
+      .zip(MediaClient.managed[AudioSegment](port))
       .use {
-        case (mic, play) =>
-          MediaServer
-            .accept(port, audioBufferSize)
-            .map(AudioCodec.decode)
+        case ((mic, play), client) =>
+          client
+            .acceptStream(audioBufferSize)
             .tap(c => UIO(println(c)))
             .mapConcatChunk(_.audio)
             .run(play.sink)
             .forkDaemon *>
             mic
               .stream(audioChunkSize)
-              .mapChunks(AudioCodec.encode(_, 21, 42))
-              .run(MediaClient.mediaSink("localhost", port))
+              .mapChunks(chunk => Chunk(AudioSegment(AudioHeader(1, 2), chunk)))
+              .run(client.sendSink("localhost", port))
       }
       .as(ExitCode.success)
 }
