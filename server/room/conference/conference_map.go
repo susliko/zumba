@@ -53,7 +53,7 @@ func (m *ConferenceMap) GetConferenceUsers(conference uint8) ([]uint8, error) {
 		return nil, ConferenceNotFoundError
 	}
 
-	result := make([]uint8, len(m.data[conference]))
+	result := make([]uint8, 0, len(m.data[conference]))
 	for user := range m.data[conference] {
 		result = append(result, user)
 	}
