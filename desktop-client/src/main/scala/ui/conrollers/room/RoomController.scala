@@ -7,13 +7,12 @@ import javafx.embed.swing.SwingFXUtils
 import javafx.fxml.FXML
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.Label
+import javafx.scene.control.{CheckBox, Label}
 import javafx.scene.image.ImageView
-import javafx.scene.layout.{FlowPane, StackPane, TilePane}
+import javafx.scene.layout.{StackPane, TilePane}
 import media.ImageSegment
-import zio.console._
 import zio.stream._
-import zio.{Fiber, RIO, Ref, Task, UIO, ZIO, ZManaged}
+import zio.{Fiber, Ref, Task, UIO, ZIO, ZManaged}
 
 import scala.util.Try
 
@@ -27,10 +26,16 @@ class RoomController(
   @FXML
   var tilesPane: TilePane = _
 
-  var images: List[ImageView] = List.empty
+  @FXML
+  var debugCheckBox: CheckBox = _
+
+  @FXML
+  var debugPanel: Node = _
 
   def tilesNum(size: Int): Int =
     Math.sqrt(size).ceil.toInt
+
+  // ***** Handlers *****
 
   def addOne(): Unit = {
     runtime.unsafeRunAsync_(
@@ -50,10 +55,14 @@ class RoomController(
     )
   }
 
+  // ***** API *****
+
   def makeTileNode(userName: String, imageView: ImageView): StackPane = {
     val label = new Label(userName)
     val tileNode = new StackPane(imageView, label)
     tileNode.setStyle("-fx-border-color: blue; -fx-border-width: 1 ; ")
+//    tilesPane.setPrefRows()!!!
+//    https://stackoverflow.com/questions/43369963/javafx-tile-pane-set-max-number-of-columns
     tileNode
   }
 

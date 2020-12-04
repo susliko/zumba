@@ -3,12 +3,13 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.VBox?>
 
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Tooltip?>
 <BorderPane
         xmlns="http://javafx.com/javafx"
         xmlns:fx="http://javafx.com/fxml"
@@ -21,7 +22,13 @@
         </HBox>
     </top>
     <left>
-        <VBox style="-fx-background-color: #333333;" prefWidth="30"/>
+        <VBox style="-fx-background-color: #333333; -fx-padding: 5 5 5 5" prefWidth="30" alignment="BOTTOM_CENTER">
+            <CheckBox fx:id="debugCheckBox" style="-fx-label-padding: 0">
+                <tooltip>
+                    <Tooltip text="Дебаг"/>
+                </tooltip>
+            </CheckBox>
+        </VBox>
     </left>
     <center>
         <ScrollPane hbarPolicy="NEVER" prefWidth="Infinity" prefHeight="Infinity" fitToHeight="true" fitToWidth="true">
@@ -30,7 +37,7 @@
         </ScrollPane>
     </center>
     <right>
-        <VBox alignment="TOP_CENTER">
+        <VBox fx:id="debugPanel" alignment="TOP_CENTER" visible="${debugCheckBox.selected}" managed="${debugCheckBox.selected}">
             <Button fx:id="addOne" text="+" onAction="#addOne"/>
             <Button fx:id="removeOne" text="-" onAction="#removeOne"/>
         </VBox>
