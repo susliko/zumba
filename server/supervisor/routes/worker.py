@@ -9,7 +9,7 @@ from supervisor.utils import catch_exceptions
 worker_router = APIRouter()
 
 
-@worker_router.get('/worker/all/', response_model=Dict[str, Worker])
+@worker_router.get('/worker/all/', response_model=Dict[int, Worker])
 @catch_exceptions
 async def get_all_workers(db: RedisClient = Depends(get_db)):
     id_to_worker = await db.get_workers()
@@ -41,9 +41,22 @@ async def modify_workers(body: WorkerCreateBody, db: RedisClient = Depends(get_d
     if body.id in id_to_worker:
         existing_worker = id_to_worker[body.id]
         existing_worker.id = body.id
-        existing_worker.url = body.url
+        existing_worker.host = body.host
         existing_worker.capacity = body.capacity
+
+        existing_worker.receive_video_port = body.receive_video_port
+        existing_worker.receive_audio_port = body.receive_audio_port
+        existing_worker.send_video_port = body.send_video_port
+        existing_worker.send_audio_port = body.send_audio_port
+
         id_to_worker[body.id] = existing_worker
     else:
-        id_to_worker[body.id] = Worker(id=body.id, url=body.url, capacity=body.capacity)
+        id_to_worker[body.id] = Worker(id=body.id,
+                                       host=body.host,
+                                       capacity=body.capacity,
+                                       receive_video_port=body.receive_video_port,
+                                       receive_audio_port=body.receive_audio_port,
+                                       send_video_port=body.send_video_port,
+                                       send_audio_port=body.send_audio_port,
+                                       )
     await db.set_workers(id_to_worker)

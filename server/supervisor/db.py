@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from aioredis import Redis, create_redis
 
 from supervisor.config import config
-from supervisor.datas import Room, Worker
+from supervisor.datas import Room, User, Worker
 
 
 async def get_db():
@@ -47,3 +47,15 @@ class RedisClient:
 
     async def set_workers(self, id_to_worker: Dict[str, Worker]) -> None:
         await self.redis.set('workers', json.dumps({id: worker.json() for id, worker in id_to_worker.items()}))
+
+    # Users
+
+    async def get_users(self) -> Dict[str, User]:
+        id_to_user_raw = await self.redis.get('users')
+        id_to_user = json.loads(id_to_user_raw if id_to_user_raw is not None else '{}')
+        return {id: User.parse_raw(user) for id, user in id_to_user.items()}
+
+    async def set_users(self, id_to_user: Dict[str, User]) -> None:
+        await self.redis.set('users', json.dumps({id: user.json() for id, user in id_to_user.items()}))
+
+
