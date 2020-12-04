@@ -1,6 +1,9 @@
 name := "zumba"
 
 version := "0.1"
+maintainer := "Peka"
+packageSummary := "Videochat"
+packageDescription := "Videochat"
 
 scalaVersion := "2.13.3"
 scalacOptions += "-Ymacro-annotations"
@@ -26,10 +29,8 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser"
 ).map(_ % "0.14.0-M1")
 
-assemblyJarName in assembly := "zumba.jar"
-assemblyOutputPath in assembly := file("./zumba.jar")
-assemblyMergeStrategy in assembly := {
-  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-  case x => MergeStrategy.first
-}
-mainClass in assembly := Some("ui.Main")
+mainClass in Compile := Some("ui.Main")
+discoveredMainClasses in Compile := Seq()
+
+enablePlugins(DebianPlugin)
+linuxPackageMappings in Debian := linuxPackageMappings.value
