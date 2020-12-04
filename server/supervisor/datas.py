@@ -14,10 +14,8 @@ class Worker(BaseModel):
     capacity: int = 1
     filled: int = 0
 
-    receive_video_port: int
-    receive_audio_port: int
-    send_video_port: int
-    send_audio_port: int
+    worker_video_port: int
+    worker_audio_port: int
 
 
 class Room(BaseModel):
@@ -46,7 +44,5 @@ class WorkerCreateBody(BaseModel):
     host: str
     capacity: int = 1
 
-    receive_video_port: int = 5001
-    receive_audio_port: int = 5002
-    send_video_port: int = 6001
-    send_audio_port: int = 6002
+    worker_video_port: int = 5001
+    worker_audio_port: int = 5002

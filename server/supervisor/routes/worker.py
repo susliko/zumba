@@ -44,19 +44,15 @@ async def modify_workers(body: WorkerCreateBody, db: RedisClient = Depends(get_d
         existing_worker.host = body.host
         existing_worker.capacity = body.capacity
 
-        existing_worker.receive_video_port = body.receive_video_port
-        existing_worker.receive_audio_port = body.receive_audio_port
-        existing_worker.send_video_port = body.send_video_port
-        existing_worker.send_audio_port = body.send_audio_port
+        existing_worker.worker_video_port = body.worker_video_port
+        existing_worker.worker_audio_port = body.worker_audio_port
 
         id_to_worker[body.id] = existing_worker
     else:
         id_to_worker[body.id] = Worker(id=body.id,
                                        host=body.host,
                                        capacity=body.capacity,
-                                       receive_video_port=body.receive_video_port,
-                                       receive_audio_port=body.receive_audio_port,
-                                       send_video_port=body.send_video_port,
-                                       send_audio_port=body.send_audio_port,
+                                       worker_video_port=body.worker_video_port,
+                                       worker_audio_port=body.worker_audio_port,
                                        )
     await db.set_workers(id_to_worker)

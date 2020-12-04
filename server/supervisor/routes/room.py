@@ -6,12 +6,12 @@ from supervisor.datas import Room, RoomCreateBody, RoomJoinBody
 from supervisor.db import RedisClient, get_db
 from supervisor.utils import catch_exceptions, choose_worker, get_user
 
-# from supervisor.worker_client import WorkerClientAsync
+from supervisor.worker_client import SpeechlessWorkerClientAsync
 
 room_router = APIRouter()
 
 
-# worker_client = WorkerClientAsync('localhost', 5000)
+worker_client = SpeechlessWorkerClientAsync('localhost', 5000)
 
 
 @room_router.post('/room/create/')
@@ -36,10 +36,8 @@ async def create(body: RoomCreateBody, db: RedisClient = Depends(get_db)):
     return {
         'room_id': new_room.id,
         'worker_host': worker.host,
-        'receive_video_port': worker.receive_video_port,
-        'receive_audio_port': worker.receive_audio_port,
-        'send_video_port': worker.send_video_port,
-        'send_audio_port': worker.send_audio_port,
+        'worker_video_port': worker.worker_video_port,
+        'worker_audio_port': worker.worker_audio_port,
     }
 
 
@@ -66,10 +64,8 @@ async def join(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
 
         return {
             'worker_host': worker.host,
-            'receive_video_port': worker.receive_video_port,
-            'receive_audio_port': worker.receive_audio_port,
-            'send_video_port': worker.send_video_port,
-            'send_audio_port': worker.send_audio_port,
+            'worker_video_port': worker.worker_video_port,
+            'worker_audio_port': worker.worker_audio_port,
         }
 
 
@@ -92,7 +88,7 @@ async def leave(body: RoomJoinBody, db: RedisClient = Depends(get_db)):
 @catch_exceptions
 async def get_all_rooms(db: RedisClient = Depends(get_db)):
     rooms = await db.get_rooms()
-    # await worker_client.ping()
+    await worker_client.ping()
     return rooms
 
 
@@ -126,9 +122,7 @@ async def get_room_by_id(room_id: str, db: RedisClient = Depends(get_db)):
 
         return {
             'worker_host': worker.host,
-            'receive_video_port': worker.receive_video_port,
-            'receive_audio_port': worker.receive_audio_port,
-            'send_video_port': worker.send_video_port,
-            'send_audio_port': worker.send_audio_port,
+            'worker_video_port': worker.worker_video_port,
+            'worker_audio_port': worker.worker_audio_port,
             'users': room_users,
         }
