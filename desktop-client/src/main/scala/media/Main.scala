@@ -17,7 +17,7 @@ object Main extends zio.App {
       _ <- putStrLn("")
       _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
       _ <- putStrLn("")
-      _ <- supervisorTest(cfg)
+      _ <- udpVideoStream(cfg)
     } yield ExitCode.success)
       .catchAllCause(c => UIO(println(c.untraced)).as(ExitCode.success))
 
@@ -28,13 +28,17 @@ object Main extends zio.App {
         case (webcam, client) =>
           client
             .acceptStream(cfg.videoBufSize)
-            .tap(i => UIO(println(i)))
+            .tap(i => UIO(println(s"Got $i")).when(cfg.logPackets))
             .map(_.toRaster)
             .runDrain
             .forkDaemon *>
             webcam.stream
               .mapConcatChunk(ImageSegment.fromImage(_, cfg.roomId, cfg.userId))
-              .tap(s => UIO(println(s.toRaster.getBounds)))
+              .tap(
+                s =>
+                  UIO(println(s"Sending ${s.toRaster.getBounds}"))
+                    .when(cfg.logPackets)
+              )
               .run(client.sendSink(cfg.rumbaHost, cfg.rumbaVideoPort))
       }
 
