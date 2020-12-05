@@ -8,7 +8,7 @@ import zio.console._
 import zio.{ExitCode, RIO, Schedule, Task, UIO, URIO, ZIO, ZManaged}
 import javafx.fxml.FXMLLoader
 import javafx.scene.{Node, Scene}
-import media.Webcam
+import media.{Webcam, ZumbaConfig}
 import ui.conrollers.{Mediator, SceneType}
 import zio.clock.Clock
 import zio.duration._
@@ -22,8 +22,9 @@ object Main extends zio.App {
 
   def background: RIO[Clock, Unit] =
     for {
+      config <- ZumbaConfig.withProps
       _ <- waitTillStart
-      mediator <- Mediator.apply(Main.primaryStage)(this)
+      mediator <- Mediator.apply(config, Main.primaryStage)(this)
       _ <- mediator.switchScene(SceneType.Menu)
     } yield ()
 

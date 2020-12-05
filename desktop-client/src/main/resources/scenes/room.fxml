@@ -42,12 +42,12 @@
                     <Tooltip text="Дебаг"/>
                 </tooltip>
             </CheckBox>
-            <CheckBox fx:id="useAudioCheckBox" style="-fx-label-padding: 0">
+            <CheckBox fx:id="useMicrophoneCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchMicrophone">
                 <tooltip>
                     <Tooltip text="Использовать микрофон"/>
                 </tooltip>
             </CheckBox>
-            <ComboBox fx:id="selectAudioComboBox"/>
+            <ComboBox fx:id="selectMicrophoneComboBox" onAction="#selectMicrophone"/>
             <CheckBox fx:id="useWebcamCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchWebcam" onAction="#selectWebcam">
                 <tooltip>
                     <Tooltip text="Использовать камеру"/>

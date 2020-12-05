@@ -33,10 +33,10 @@ class RoomController(
   var debugPanel: Node = _
 
   @FXML
-  var useAudioCheckBox: CheckBox = _
+  var useMicrophoneCheckBox: CheckBox = _
 
   @FXML
-  var selectAudioComboBox: ComboBox[String] = _
+  var selectMicrophoneComboBox: ComboBox[String] = _
 
   @FXML
   var useWebcamCheckBox: CheckBox = _
@@ -63,6 +63,24 @@ class RoomController(
         .get
         .map(_.maxByOption(_._1))
         .flatMap(key => ZIO.foreach(key)(pair => removeUser(pair._1)))
+    )
+  }
+
+  @FXML
+  def switchMicrophone(): Unit = {
+    runtime.unsafeRunAsync_(
+      if (useMicrophoneCheckBox.isSelected) {
+        mediator.enableMicrophone
+      } else {
+        mediator.disableMicrophone
+      }
+    )
+  }
+
+  @FXML
+  def selectMicrophone(): Unit = {
+    runtime.unsafeRunAsync_(
+      mediator.selectMicrophone(selectMicrophoneComboBox.getValue)
     )
   }
 
@@ -186,11 +204,11 @@ class RoomController(
       webcamNames <- Webcam.names
 
       _ <- runOnFxThread { () =>
-        selectAudioComboBox.getItems.setAll(audioNames: _*)
+        selectMicrophoneComboBox.getItems.setAll(audioNames: _*)
         selectWebcamComboBox.getItems.setAll(webcamNames: _*)
-        selectAudioComboBox.setValue(settings.selectedMicrophone)
+        selectMicrophoneComboBox.setValue(settings.selectedMicrophone)
         selectWebcamComboBox.setValue(settings.selectedWebcam)
-        useAudioCheckBox.setSelected(settings.useMicrophone)
+        useMicrophoneCheckBox.setSelected(settings.useMicrophone)
         useWebcamCheckBox.setSelected(settings.useWebcam)
         addTile(selfTileNode)
       }
