@@ -11,7 +11,7 @@ from supervisor.routes.worker import worker_router
 app = FastAPI()
 
 log_file_path = path.join(path.dirname(path.abspath(__file__)), 'logging.conf')
-logging.config.fileConfig(log_file_path)
+logging.config.fileConfig(log_file_path, disable_existing_loggers=False)
 app.add_middleware(RouteLoggerMiddleware)
 
 app.include_router(room_router)
