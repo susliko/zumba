@@ -107,7 +107,9 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 				continue
 			}
 
-			msg, err := ParseMessageFromBytes(buffer[:n])
+			tmp := make([]byte, n)
+			copy(tmp, buffer[:n])
+			msg, err := ParseMessageFromBytes(tmp)
 			if err != nil {
 				server.logger.Errorf("while parsing msg an error occurred: %v", err)
 				continue
