@@ -2,6 +2,7 @@ package media
 import cats.Show
 import web.MediaClient
 import zio._
+import zio.console._
 
 object Main extends zio.App {
 
@@ -13,6 +14,12 @@ object Main extends zio.App {
           s"Running with ${implicitly[Show[ZumbaConfig]].show(cfg).split(",").mkString("\n  ")}"
         )
       )
+      micros <- Microphone.names(cfg.audioFormat)
+      playbacks <- Playback.names(cfg.audioFormat)
+      _ <- putStrLn(s"Available audio inputs:\n${micros.mkString("\n")}")
+      _ <- putStrLn("")
+      _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
+      _ <- putStrLn("")
       _ <- udpPlaybackStream(cfg)
     } yield ExitCode.success).orDie
 

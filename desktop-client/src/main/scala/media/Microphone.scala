@@ -21,14 +21,15 @@ class Microphone(line: TargetDataLine) {
 }
 
 object Microphone {
-  def names: Task[List[String]] = Task {
-    AudioSystem.getMixerInfo.toList
-      .filter(
-        info =>
-          Try(AudioSystem.getTargetDataLine(defaultAudioFormat, info)).isSuccess
-      )
-      .map(_.getDescription)
-  }
+  def names(audioFormat: AudioFormat = defaultAudioFormat): Task[List[String]] =
+    Task {
+      AudioSystem.getMixerInfo.toList
+        .filter(
+          info =>
+            Try(AudioSystem.getTargetDataLine(audioFormat, info)).isSuccess
+        )
+        .map(_.getDescription)
+    }
 
   def managed(
     choose: NonEmptyList[Mixer.Info] => Mixer.Info = _.head,
