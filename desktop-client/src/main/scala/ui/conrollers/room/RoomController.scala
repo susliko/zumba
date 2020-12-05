@@ -2,7 +2,6 @@ package ui.conrollers.room
 
 import java.awt.image.BufferedImage
 
-import javafx.application.Platform
 import javafx.embed.swing.SwingFXUtils
 import javafx.fxml.FXML
 import javafx.geometry.Pos
@@ -11,14 +10,17 @@ import javafx.scene.control.{CheckBox, Label}
 import javafx.scene.image.ImageView
 import javafx.scene.layout.{StackPane, TilePane}
 import media.ImageSegment
+import ui.conrollers.Mediator
 import zio.stream._
-import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO, ZManaged}
+import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
+import ui.runOnFxThread
 
 import scala.util.Try
 
 class RoomController(
+                      mediator: Mediator,
                       val selfTile: Ref[Option[TileInfo]],
-                      val tiles: Ref[Map[Byte, TileInfo]],
+                      val tiles: Ref[Map[Byte, TileInfo]]
                     )(implicit runtime: zio.Runtime[Any]) {
 
   @FXML
@@ -66,13 +68,13 @@ class RoomController(
 
   def addUser(userId: Byte, userName: String): Task[Unit] = {
     val imageView = new ImageView()
-    val bufferedImage = new BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)
+    val bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
     val node = makeTileNode(userName, imageView)
     val tileInfo = TileInfo(userName, node, imageInfo = Some(ImageInfo(imageView, bufferedImage)))
 
     for {
       _ <- tiles.update(_.updated(userId, tileInfo))
-      _ <- ZIO(Platform.runLater(() => addTile(node)))
+      _ <- runOnFxThread(() => addTile(node))
     } yield ()
   }
 
@@ -80,7 +82,7 @@ class RoomController(
     tiles
       .modify(tiles => (tiles.get(userId), tiles.removed(userId)))
       .collectM[Any, Throwable, Unit](new NoSuchElementException(s"User $userId is not a member of room")) {
-        case Some(tileInfo) => ZIO(Platform.runLater(() => tilesPane.getChildren.remove(tileInfo.node))).unit
+        case Some(tileInfo) => runOnFxThread(() => tilesPane.getChildren.remove(tileInfo.node))
       }
   }
 
@@ -109,37 +111,46 @@ class RoomController(
   def imageSegmentsSink: Sink[Throwable, ImageSegment, Any, Unit] =
     Sink.foreach { imageSegment =>
       tiles.update { tiles =>
-        for {
+        (for {
           tileInfo <- tiles.get(imageSegment.header.userId)
           imageInfo <- tileInfo.imageInfo
-          _ = imageInfo.bufferedImage.setData(imageSegment.toRaster)
+          raster = imageSegment.toRaster
+          rasterBounds = raster.getBounds
+          leftX = rasterBounds.x + rasterBounds.width
+          bottomY = rasterBounds.y + rasterBounds.height
+          newTiles = if (leftX > imageInfo.bufferedImage.getWidth && bottomY > imageInfo.bufferedImage.getHeight) {
+            val newBufferedImage = new BufferedImage(leftX, bottomY, BufferedImage.TYPE_INT_RGB)
+            newBufferedImage.setData(imageInfo.bufferedImage.getData())
+            newBufferedImage.setData(raster)
+            tiles.updated(
+              imageSegment.header.userId, tileInfo.copy(imageInfo = Some(imageInfo.copy(bufferedImage = newBufferedImage)))
+            )
+          } else {
+            imageInfo.bufferedImage.setData(raster)
+            tiles
+          }
           _ = Try(imageInfo.imageView.setImage(SwingFXUtils.toFXImage(imageInfo.bufferedImage, null)))
-        } yield ()
-        tiles
+        } yield newTiles).getOrElse(tiles)
       }
     }
 
-  def start(
-             selfVideoStream: TaskManaged[Stream[Throwable, BufferedImage]],
-             videoStream: Stream[Throwable, ImageSegment],
-           ): Task[Unit] = {
-    val selfImageView = new ImageView
-    val selfTileNode = makeTileNode("Это я", selfImageView)
-    val bufferedImage = new BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)
-    val selfTileInfo = TileInfo("Это я", selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
-
+  def start: Task[Unit] =
     for {
+      settings <- mediator.getSettings
+      selfImageView = new ImageView
+      selfTileNode = makeTileNode(settings.name, selfImageView)
+      bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
+      selfTileInfo = TileInfo(settings.name, selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
       _ <- selfTile.set(Some(selfTileInfo))
-      _ <- ZIO(Platform.runLater(() => addTile(selfTileNode)))
+      _ <- runOnFxThread(() => addTile(selfTileNode))
     } yield ()
-  }
 
 }
 
 object RoomController {
-  def acquireRoomController(implicit runtime: zio.Runtime[Any]): UIO[RoomController] =
+  def apply(mediator: Mediator)(implicit runtime: zio.Runtime[Any]): UIO[RoomController] =
     for {
       selfTile <- Ref.make[Option[TileInfo]](None)
       tiles <- Ref.make[Map[Byte, TileInfo]](Map.empty)
-    } yield new RoomController(selfTile, tiles)
+    } yield new RoomController(mediator, selfTile, tiles)
 }

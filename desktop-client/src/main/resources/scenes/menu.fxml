@@ -9,15 +9,20 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Text?>
 
+<?import javafx.scene.layout.HBox?>
 <GridPane xmlns:fx="http://javafx.com/fxml" alignment="center">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" percentWidth="50.0"/>
         <ColumnConstraints hgrow="SOMETIMES" percentWidth="50.0"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints prefHeight="Infinity" vgrow="SOMETIMES"/>
+        <RowConstraints vgrow="NEVER"/>
+        <RowConstraints vgrow="ALWAYS"/>
     </rowConstraints>
-    <VBox prefWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-background-color: lightGrey"
+    <HBox GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2" style="-fx-background-color: black">
+        <TextField fx:id="nameTextField" promptText="Имя" onTextChange="#changeName"/>
+    </HBox>
+    <VBox prefWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-background-color: lightGrey"
           alignment="CENTER_LEFT" spacing="10">
         <padding>
             <Insets top="10" bottom="10" left="10" right="10"/>
@@ -26,7 +31,7 @@
         <TextField promptText="Номер комнаты"/>
         <Button text="Войти!" onMouseClicked="#enterRoom"/>
     </VBox>
-    <VBox prefWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" style="-fx-background-color: darkGrey"
+    <VBox prefWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-background-color: darkGrey"
           alignment="CENTER_LEFT" spacing="10">
         <padding>
             <Insets top="10" bottom="10" left="10" right="10"/>

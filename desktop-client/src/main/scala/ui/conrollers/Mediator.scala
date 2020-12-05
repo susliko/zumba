@@ -1,7 +1,5 @@
 package ui.conrollers
 
-import java.awt.image.BufferedImage
-
 import ui._
 import javafx.fxml.FXMLLoader
 import javafx.scene.Scene
@@ -10,24 +8,38 @@ import javafx.stage.Stage
 import media.{ImageSegment, Playback, Webcam}
 import ui.conrollers.menu.MenuController
 import ui.conrollers.room.RoomController
-import zio.{Ref, Runtime, Task, TaskManaged, UIO}
+import zio.{Fiber, Ref, Runtime, Task, TaskManaged, UIO}
 import zio.stream.Stream
 
-class Mediator(primaryStage: Stage, inputOptions: Ref[InputOptions], activeController: Ref[Controller])(implicit runtime: Runtime[Any]) {
+class Mediator(
+                primaryStage: Stage,
+                settings: Ref[Settings],
+                activeController: Ref[Option[Controller]],
+                selfVideoFiber: Ref[Option[Fiber[Throwable, Unit]]],
+                videoSegmentsFiber: Ref[Option[Fiber[Throwable, Unit]]]
+              )(implicit runtime: Runtime[Any]) {
 
-  def getInputOptions: Task[InputOptions] = inputOptions.get
+  def getSettings: Task[Settings] = settings.get
 
   def useWebcam(name: String): TaskManaged[Webcam] =
     activeController.get.toManaged_.flatMap {
-      case Controller.Menu(menu) =>
+      case Some(Controller.Menu(menu)) =>
         Webcam.managedByName(name)
-      case Controller.Room(room) =>
+      case Some(Controller.Room(room)) =>
         Webcam.managedByName(name)
     }
 
+  def setName(name: String): Task[Unit] =
+    activeController.get.flatMap {
+      case Some(Controller.Menu(menu)) =>
+        settings.update(_.copy(name = name))
+      case Some(Controller.Room(room)) =>
+        Task.unit
+    }
+
   def getActiveWebcam: TaskManaged[Webcam] =
-    inputOptions.get.toManaged_.flatMap(options =>
-      Webcam.managedByName(options.activeVideo)
+    settings.get.toManaged_.flatMap(options =>
+      Webcam.managedByName(options.selectedVideo)
     )
 
   def switchScene(sceneType: SceneType): Task[Unit] =
@@ -39,16 +51,17 @@ class Mediator(primaryStage: Stage, inputOptions: Ref[InputOptions], activeContr
         val menuController = new MenuController(this)
         loader.setController(menuController)
         val root: GridPane = loader.load
-        runOnFxThread(() => {
-          primaryStage.setScene(new Scene(root))
-          primaryStage.show()
-          primaryStage.setWidth(600)
-          primaryStage.setHeight(400)
-        }).onError(x => UIO(println(x)))
+        (activeController.set(Some(Controller.Menu(menuController))) *>
+          runOnFxThread { () =>
+            primaryStage.setScene(new Scene(root))
+            primaryStage.show()
+            primaryStage.setWidth(600)
+            primaryStage.setHeight(400)
+          }).onError(x => UIO(println(x)))
 
       case SceneType.Room =>
         (for {
-          roomController <- RoomController.acquireRoomController
+          roomController <- RoomController.apply(this)
           scene <- Task {
             val xmlUrl = getClass.getResource("/scenes/room.fxml")
             val loader = new FXMLLoader
@@ -61,15 +74,18 @@ class Mediator(primaryStage: Stage, inputOptions: Ref[InputOptions], activeContr
             primaryStage.setScene(scene)
             primaryStage.show()
           }
-          selfVideoStream = Webcam.managed().map(_.stream)
-          _ <- roomController.start(selfVideoStream, Stream.empty)
-          _ <- getActiveWebcam
+          _ <- activeController.set(Some(Controller.Room(roomController)))
+          _ <- roomController.start
+          // TODO: Send video and audio to server here
+          fiber <- getActiveWebcam
             .use(webcam =>
               webcam.stream.run(
                 roomController.selfVideoSink
                   .zipPar(roomController.imageSegmentsSink.contramapChunks(chunk => chunk.flatMap(ImageSegment.fromImage(_, 1, 1))))
               )
-            )
+            ).unit.forkDaemon
+          maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
+          _ <- Task.foreach(maybeOldSelfVideoFiber)(_.interrupt)
         } yield ()).onError(x => UIO(println(x.prettyPrint)))
     }
 }
@@ -79,7 +95,9 @@ object Mediator {
     for {
       audioNames <- Playback.names()
       videoNames <- Webcam.names
-      inputOptions <- Ref.make(InputOptions(audioNames.head, videoNames.head))
-      activeController <- Ref.make[Controller](null)
-    } yield new Mediator(primaryStage, inputOptions, activeController)
+      inputOptions <- Ref.make(Settings("Это я", isAudioActive = true, isVideoActive = true, audioNames.head, videoNames.head))
+      activeController <- Ref.make[Option[Controller]](None)
+      selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
+      videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
+    } yield new Mediator(primaryStage, inputOptions, activeController, selfVideoFiber, videoSegmentsFiber)
 }
