@@ -1,15 +1,17 @@
 import logging.config
+from os import path
 
 from fastapi import FastAPI
 from fastapi_route_logger_middleware import RouteLoggerMiddleware
 
 from supervisor.routes.room import room_router
-from supervisor.routes.worker import worker_router
 from supervisor.routes.user import user_router
+from supervisor.routes.worker import worker_router
 
 app = FastAPI()
 
-logging.config.fileConfig("./logging.conf")
+log_file_path = path.join(path.dirname(path.abspath(__file__)), 'logging.conf')
+logging.config.fileConfig(log_file_path)
 app.add_middleware(RouteLoggerMiddleware)
 
 app.include_router(room_router)
