@@ -16,7 +16,8 @@ class MenuController(mediator: Mediator)(implicit runtime: Runtime[Any]) {
   def createRoom(): Unit =
     runtime.unsafeRunAsync_(
       Task {
-        println("Create!")
+        Task(println("Create!")) *>
+          mediator.switchScene(SceneType.Room)
       }
     )
 }

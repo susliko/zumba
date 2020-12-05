@@ -70,6 +70,11 @@ case class ImageSegment(header: ImageHeader, image: BufferedImage) {
   def toRaster: Raster = {
     val width = image.getWidth
     val height = image.getHeight
+    println("Recieve")
+    println(image.getData.getBounds)
+    println(s"${header.x}, ${header.y}")
+    println(s"$width x $height")
+    println()
     image.getData.createTranslatedChild(width * header.x, height * header.y)
   }
 
@@ -95,11 +100,18 @@ object ImageSegment {
     val tileH = image.getHeight / nTiles;
     Chunk.fromIterable(
       for (i <- 0 until nTiles; j <- 0 until nTiles)
-        yield
+        yield {
+          println("Send")
+          println(image.getData.getBounds)
+          println(image.getSubimage(i * tileW, j * tileH, tileW, tileH).getData.getBounds)
+          println(s"${i}, ${j}")
+          println(s"$tileW x $tileH")
+          println()
           ImageSegment(
             ImageHeader(roomId, userId, i.toByte, j.toByte),
             image.getSubimage(i * tileW, j * tileH, tileW, tileH)
           )
+        }
     )
   }
 }
