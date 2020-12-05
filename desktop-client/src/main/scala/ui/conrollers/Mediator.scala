@@ -32,22 +32,22 @@ class Mediator(
         Task.unit
     }
 
-  def selectVideo(name: String): Task[Unit] =
+  def selectWebcam(name: String): Task[Unit] =
     for {
       maybeSelfVideoFiber <- selfVideoFiber.getAndSet(None)
       _ <- Task.foreach(maybeSelfVideoFiber)(_.interrupt)
-      settings <- settings.updateAndGet(_.copy(selectedVideo = name))
-      _ <- enableVideo.when(settings.useVideo)
+      settings <- settings.updateAndGet(_.copy(selectedWebcam = name))
+      _ <- enableWebcam.when(settings.useWebcam)
     } yield ()
 
 
-  def enableVideo: Task[Unit] =
+  def enableWebcam: Task[Unit] =
     activeController.get.flatMap {
       case Some(Controller.Room(room)) =>
         for {
-          selectedVideo <- settings.get.map(_.selectedVideo)
+          selectedWebcam <- settings.get.map(_.selectedWebcam)
           // TODO: Send video and audio to server here
-          fiber <- Webcam.managedByName(selectedVideo).use(webcam =>
+          fiber <- Webcam.managedByName(selectedWebcam).use(webcam =>
             webcam.stream.run(
               room.selfVideoSink
                 .zipPar(room.imageSegmentsSink.contramapChunks(kek))
@@ -55,18 +55,18 @@ class Mediator(
           ).unit.forkDaemon
           maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
           _ <- Task.foreach(maybeOldSelfVideoFiber)(_.interrupt)
-          _ <- settings.update(_.copy(useVideo = true))
+          _ <- settings.update(_.copy(useWebcam = true))
         } yield ()
 
       case None =>
         Task.unit
     }
 
-  def disableVideo: Task[Unit] =
+  def disableWebcam: Task[Unit] =
     for {
       maybeSelfVideoFiber <- selfVideoFiber.getAndSet(None)
       _ <- Task.foreach(maybeSelfVideoFiber)(_.interrupt)
-      _ <- settings.update(_.copy(useVideo = false))
+      _ <- settings.update(_.copy(useWebcam = false))
     } yield ()
 
   def kek(chunk: Chunk[BufferedImage]): Chunk[ImageSegment] =
@@ -138,7 +138,7 @@ object Mediator {
     for {
       audioNames <- Playback.names()
       videoNames <- Webcam.names
-      inputOptions <- Ref.make(Settings("Это я", useAudio = true, useVideo = true, audioNames.head, videoNames.head))
+      inputOptions <- Ref.make(Settings("Это я", useMicrophone = true, useWebcam = true, audioNames.head, videoNames.head))
       activeController <- Ref.make[Option[Controller]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)

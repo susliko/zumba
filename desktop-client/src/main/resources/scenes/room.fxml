@@ -48,12 +48,12 @@
                 </tooltip>
             </CheckBox>
             <ComboBox fx:id="selectAudioComboBox"/>
-            <CheckBox fx:id="useVideoCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchVideo">
+            <CheckBox fx:id="useVideoCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchWebcam">
                 <tooltip>
                     <Tooltip text="Использовать камеру"/>
                 </tooltip>
             </CheckBox>
-            <ComboBox fx:id="selectVideoComboBox" onAction="#selectVideo"/>
+            <ComboBox fx:id="selectWebcamComboBox" onAction="#selectWebcam"/>
             <Button fx:id="leaveButton" text="Выйти" onMouseClicked="#leave"/>
         </HBox>
     </bottom>
