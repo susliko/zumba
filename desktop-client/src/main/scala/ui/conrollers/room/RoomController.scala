@@ -39,10 +39,10 @@ class RoomController(
   var selectAudioComboBox: ComboBox[String] = _
 
   @FXML
-  var useVideoCheckBox: CheckBox = _
+  var useWebcamCheckBox: CheckBox = _
 
   @FXML
-  var selectVideoComboBox: ComboBox[String] = _
+  var selectWebcamComboBox: ComboBox[String] = _
 
   // ***** Handlers *****
 
@@ -67,20 +67,20 @@ class RoomController(
   }
 
   @FXML
-  def switchVideo(): Unit = {
+  def switchWebcam(): Unit = {
     runtime.unsafeRunAsync_(
-      if (useVideoCheckBox.isSelected) {
-        mediator.enableVideo
+      if (useWebcamCheckBox.isSelected) {
+        mediator.enableWebcam
       } else {
-        mediator.disableVideo
+        mediator.disableWebcam
       }
     )
   }
 
   @FXML
-  def selectVideo(): Unit = {
+  def selectWebcam(): Unit = {
     runtime.unsafeRunAsync_(
-      mediator.selectVideo(selectVideoComboBox.getValue)
+      mediator.selectWebcam(selectWebcamComboBox.getValue)
     )
   }
 
@@ -180,19 +180,18 @@ class RoomController(
       bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
       selfTileInfo = TileInfo(settings.name, selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
       _ <- selfTileRef.set(Some(selfTileInfo))
-      _ <- mediator.enableVideo.when(settings.useVideo)
+      _ <- mediator.enableWebcam.when(settings.useWebcam)
 
       audioNames <- Microphone.names()
-      videoNames <- Webcam.names
-
+      webcamNames <- Webcam.names
 
       _ <- runOnFxThread { () =>
         selectAudioComboBox.getItems.setAll(audioNames: _*)
-        selectVideoComboBox.getItems.setAll(videoNames: _*)
-        selectAudioComboBox.setValue(settings.selectedAudio)
-        selectVideoComboBox.setValue(settings.selectedVideo)
-        useAudioCheckBox.setSelected(settings.useAudio)
-        useVideoCheckBox.setSelected(settings.useVideo)
+        selectWebcamComboBox.getItems.setAll(webcamNames: _*)
+        selectAudioComboBox.setValue(settings.selectedMicrophone)
+        selectWebcamComboBox.setValue(settings.selectedWebcam)
+        useAudioCheckBox.setSelected(settings.useMicrophone)
+        useWebcamCheckBox.setSelected(settings.useWebcam)
         addTile(selfTileNode)
       }
     } yield ()
