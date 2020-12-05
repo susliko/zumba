@@ -104,8 +104,10 @@ class RoomController(
 
   @FXML
   def leave(): Unit = {
+    println("LEAVE")
     runtime.unsafeRunAsync_(
-      mediator.switchScene(SceneType.Menu)
+      UIO(println("RUN LEAVE")) *>
+        mediator.switchScene(SceneType.Menu)
     )
   }
 

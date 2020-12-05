@@ -134,6 +134,7 @@ class Mediator(
         for {
           _ <- shutdownFiber(selfVideoFiber)
           _ <- shutdownFiber(imageSegmentsFiber)
+          _ <- shutdownFiber(microphoneFiber)
         } yield ()
     }
 
@@ -176,7 +177,9 @@ class Mediator(
               .managed[ImageSegment](config.localVideoPort)
               .use(client =>
                 imageSegmentClient.set(Some(client)) *>
-                  client.acceptStream(config.videoBufSize).run(roomController.imageSegmentsSink)
+                  client
+                    .acceptStream(config.videoBufSize * 10)
+                    .run(roomController.imageSegmentsSink)
               )
               .forkDaemon
             maybeOldFiber <- imageSegmentsFiber.getAndSet(Some(fiber))
