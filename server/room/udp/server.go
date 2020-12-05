@@ -24,7 +24,7 @@ func NewDefaultServerConfig() *ServerConfig {
 		AudioPort:     5001,
 		VideoPort:     5002,
 		TextPort:      5003,
-		MaxBufferSize: 1024,
+		MaxBufferSize: 8192,
 	}
 }
 
@@ -122,6 +122,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 			}
 
 			for _, user := range users {
+				user := user
 				if user == msg.User {
 					continue
 				}
