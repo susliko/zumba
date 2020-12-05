@@ -48,7 +48,7 @@
                 </tooltip>
             </CheckBox>
             <ComboBox fx:id="selectMicrophoneComboBox" onAction="#selectMicrophone"/>
-            <CheckBox fx:id="useVideoCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchWebcam">
+            <CheckBox fx:id="useWebcamCheckBox" style="-fx-label-padding: 0" onMouseClicked="#switchWebcam">
                 <tooltip>
                     <Tooltip text="Использовать камеру"/>
                 </tooltip>
