@@ -1,15 +1,18 @@
 package ui.conrollers
 
+import java.awt.image.BufferedImage
+
 import ui._
 import javafx.fxml.FXMLLoader
 import javafx.scene.Scene
-import javafx.scene.layout.{BorderPane, GridPane, VBox}
+import javafx.scene.layout.{BorderPane, GridPane}
 import javafx.stage.Stage
 import media.{ImageSegment, Playback, Webcam}
 import ui.conrollers.menu.MenuController
 import ui.conrollers.room.RoomController
-import zio.{Fiber, Ref, Runtime, Task, TaskManaged, UIO}
-import zio.stream.Stream
+import zio.{Chunk, Fiber, Ref, Runtime, Task, TaskManaged, UIO}
+
+import scala.util.Random
 
 class Mediator(
                 primaryStage: Stage,
@@ -41,6 +44,18 @@ class Mediator(
     settings.get.toManaged_.flatMap(options =>
       Webcam.managedByName(options.selectedVideo)
     )
+
+  def kek(chunk: Chunk[BufferedImage]): Chunk[ImageSegment] =
+    chunk
+      .flatMap(ImageSegment.fromImage(_, 1, (Random.nextInt(2) + 1).toByte))
+      .map(
+        segment =>
+          if (segment.header.userId == 2) {
+            segment.copy(header = segment.header.copy(x = ((segment.header.x + 1) % 3).toByte))
+          } else {
+            segment
+          }
+      )
 
   def switchScene(sceneType: SceneType): Task[Unit] =
     sceneType match {
@@ -81,7 +96,7 @@ class Mediator(
             .use(webcam =>
               webcam.stream.run(
                 roomController.selfVideoSink
-                  .zipPar(roomController.imageSegmentsSink.contramapChunks(chunk => chunk.flatMap(ImageSegment.fromImage(_, 1, 1))))
+                  .zipPar(roomController.imageSegmentsSink.contramapChunks(kek))
               )
             ).unit.forkDaemon
           maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
@@ -95,7 +110,7 @@ object Mediator {
     for {
       audioNames <- Playback.names()
       videoNames <- Webcam.names
-      inputOptions <- Ref.make(Settings("Это я", isAudioActive = true, isVideoActive = true, audioNames.head, videoNames.head))
+      inputOptions <- Ref.make(Settings("Это я", useAudio = true, useVideo = true, audioNames.head, videoNames.head))
       activeController <- Ref.make[Option[Controller]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)

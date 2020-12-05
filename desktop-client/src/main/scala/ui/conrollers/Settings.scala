@@ -2,8 +2,8 @@ package ui.conrollers
 
 final case class Settings(
                            name: String,
-                           isAudioActive: Boolean,
-                           isVideoActive: Boolean,
+                           useAudio: Boolean,
+                           useVideo: Boolean,
                            selectedAudio: String,
                            selectedVideo: String
                          )

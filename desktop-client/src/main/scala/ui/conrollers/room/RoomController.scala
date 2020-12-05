@@ -6,10 +6,10 @@ import javafx.embed.swing.SwingFXUtils
 import javafx.fxml.FXML
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.{CheckBox, Label}
+import javafx.scene.control.{CheckBox, ComboBox, Label}
 import javafx.scene.image.ImageView
 import javafx.scene.layout.{StackPane, TilePane}
-import media.ImageSegment
+import media.{ImageSegment, Microphone, Webcam}
 import ui.conrollers.Mediator
 import zio.stream._
 import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
@@ -32,11 +32,21 @@ class RoomController(
   @FXML
   var debugPanel: Node = _
 
-  def tilesNum(size: Int): Int =
-    Math.sqrt(size).ceil.toInt
+  @FXML
+  var useAudioCheckBox: CheckBox = _
+
+  @FXML
+  var selectAudioComboBox: ComboBox[String] = _
+
+  @FXML
+  var useVideoCheckBox: CheckBox = _
+
+  @FXML
+  var selectVideoComboBox: ComboBox[String] = _
 
   // ***** Handlers *****
 
+  @FXML
   def addOne(): Unit = {
     runtime.unsafeRunAsync_(
       tiles
@@ -46,6 +56,7 @@ class RoomController(
     )
   }
 
+  @FXML
   def removeOne(): Unit = {
     runtime.unsafeRunAsync_(
       tiles
@@ -142,7 +153,20 @@ class RoomController(
       bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
       selfTileInfo = TileInfo(settings.name, selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
       _ <- selfTile.set(Some(selfTileInfo))
-      _ <- runOnFxThread(() => addTile(selfTileNode))
+
+      audioNames <- Microphone.names()
+      videoNames <- Webcam.names
+
+
+      _ <- runOnFxThread{() =>
+        selectAudioComboBox.getItems.setAll(audioNames: _*)
+        selectVideoComboBox.getItems.setAll(videoNames: _*)
+        selectAudioComboBox.setValue(settings.selectedAudio)
+        selectVideoComboBox.setValue(settings.selectedVideo)
+        useAudioCheckBox.setSelected(settings.useAudio)
+        useVideoCheckBox.setSelected(settings.useVideo)
+        addTile(selfTileNode)
+      }
     } yield ()
 
 }

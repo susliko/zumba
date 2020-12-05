@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.ComboBox?>
 <BorderPane
         xmlns="http://javafx.com/javafx"
         xmlns:fx="http://javafx.com/fxml"
@@ -21,15 +22,6 @@
             <Label>Zumba</Label>
         </HBox>
     </top>
-    <left>
-        <VBox style="-fx-background-color: #333333; -fx-padding: 5 5 5 5" prefWidth="30" alignment="BOTTOM_CENTER">
-            <CheckBox fx:id="debugCheckBox" style="-fx-label-padding: 0">
-                <tooltip>
-                    <Tooltip text="Дебаг"/>
-                </tooltip>
-            </CheckBox>
-        </VBox>
-    </left>
     <center>
         <ScrollPane hbarPolicy="NEVER" prefWidth="Infinity" prefHeight="Infinity" fitToHeight="true" fitToWidth="true">
             <TilePane fx:id="tilesPane" style="-fx-background-color: #111111;" prefWidth="Infinity" alignment="CENTER">
@@ -37,9 +29,32 @@
         </ScrollPane>
     </center>
     <right>
-        <VBox fx:id="debugPanel" alignment="TOP_CENTER" visible="${debugCheckBox.selected}" managed="${debugCheckBox.selected}">
+        <VBox fx:id="debugPanel" alignment="TOP_CENTER" visible="${debugCheckBox.selected}"
+              managed="${debugCheckBox.selected}">
             <Button fx:id="addOne" text="+" onAction="#addOne"/>
             <Button fx:id="removeOne" text="-" onAction="#removeOne"/>
         </VBox>
     </right>
+    <bottom>
+        <HBox style="-fx-background-color: #333333; -fx-padding: 5 5 5 5" prefHeight="30" alignment="CENTER_RIGHT" spacing="5">
+            <CheckBox fx:id="debugCheckBox" style="-fx-label-padding: 0">
+                <tooltip>
+                    <Tooltip text="Дебаг"/>
+                </tooltip>
+            </CheckBox>
+            <CheckBox fx:id="useAudioCheckBox" style="-fx-label-padding: 0">
+                <tooltip>
+                    <Tooltip text="Использовать микрофон"/>
+                </tooltip>
+            </CheckBox>
+            <ComboBox fx:id="selectAudioComboBox"/>
+            <CheckBox fx:id="useVideoCheckBox" style="-fx-label-padding: 0">
+                <tooltip>
+                    <Tooltip text="Использовать камеру"/>
+                </tooltip>
+            </CheckBox>
+            <ComboBox fx:id="selectVideoComboBox"/>
+            <Button fx:id="leaveButton" text="Выйти"/>
+        </HBox>
+    </bottom>
 </BorderPane>

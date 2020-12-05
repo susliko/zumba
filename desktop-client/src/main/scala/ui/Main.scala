@@ -23,11 +23,8 @@ object Main extends zio.App {
   def background: RIO[Clock, Unit] =
     for {
       _ <- waitTillStart
-      _ = println("start")
       mediator <- Mediator.apply(Main.primaryStage)(this)
-      _ = println("go")
       _ <- mediator.switchScene(SceneType.Menu)
-      _ = println("why")
     } yield ()
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
