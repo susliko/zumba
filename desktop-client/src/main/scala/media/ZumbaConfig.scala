@@ -51,7 +51,7 @@ object ZumbaConfig {
       println("Using default config"); List.empty[(String, String)]
     }, identity)
     val supervisorUrl =
-      findVar(vars, "supervisorUrl", identity, "http://zumba.salamantos.me/")
+      findVar(vars, "supervisorUrl", identity, "http://zumba.salamantos.me")
     val userId = findVar(vars, "userId", _.toByte, 1.toByte)
     val roomId = findVar(vars, "roomId", _.toByte, 1.toByte)
     val rumbaHost = findVar(vars, "rumbaHost", identity, "143.110.168.156")

@@ -1,13 +1,12 @@
 package media
 import cats.Show
-import web.MediaClient
+import web._
 import zio._
 import zio.console._
 import zio.stream.ZSink
 import cats.implicits._
 
 object Main extends zio.App {
-
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     (for {
       cfg <- ZumbaConfig.withProps
@@ -18,8 +17,9 @@ object Main extends zio.App {
       _ <- putStrLn("")
       _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
       _ <- putStrLn("")
-      _ <- udpVideoStream(cfg)
-    } yield ExitCode.success).orDie
+      _ <- supervisorTest(cfg)
+    } yield ExitCode.success)
+      .catchAllCause(c => UIO(println(c.untraced)).as(ExitCode.success))
 
   def udpVideoStream(cfg: ZumbaConfig) =
     (Webcam
@@ -37,7 +37,6 @@ object Main extends zio.App {
               .tap(s => UIO(println(s.toRaster.getBounds)))
               .run(client.sendSink(cfg.rumbaHost, cfg.rumbaVideoPort))
       }
-      .as(ExitCode.success)
 
   def udpPlaybackStream(cfg: ZumbaConfig) =
     Microphone
@@ -72,5 +71,20 @@ object Main extends zio.App {
               .tap(c => UIO(println(s"Sending $c")).when(cfg.logPackets))
               .run(client.sendSink(cfg.rumbaHost, cfg.rumbaAudioPort))
       }
-      .as(ExitCode.success)
+
+  def supervisorTest(cfg: ZumbaConfig) =
+    SupervisorClient
+      .managed(cfg.supervisorUrl)
+      .use(
+        client =>
+          for {
+            user1 <- client.createUser("peka")
+            user2 <- client.createUser("pepe")
+            room <- client.createRoom(user1)
+            _ <- client.joinRoom(room.room_id, user2)
+            info <- client.roomInfo(room.room_id)
+            _ <- client.leaveRoom(room.room_id, user1)
+            _ <- client.leaveRoom(room.room_id, user2)
+          } yield ()
+      )
 }
