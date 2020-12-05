@@ -6,7 +6,7 @@ import zio.console._
 import zio.stream.ZSink
 import cats.implicits._
 
-object Main extends zio.App {
+object MediaMain extends zio.App {
   def run(args: List[String]): URIO[ZEnv, ExitCode] =
     (for {
       cfg <- ZumbaConfig.withProps
@@ -17,7 +17,7 @@ object Main extends zio.App {
       _ <- putStrLn("")
       _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
       _ <- putStrLn("")
-      _ <- supervisorTest(cfg)
+      _ <- udpVideoStream(cfg)
     } yield ExitCode.success)
       .catchAllCause(c => UIO(println(c.untraced)).as(ExitCode.success))
 
