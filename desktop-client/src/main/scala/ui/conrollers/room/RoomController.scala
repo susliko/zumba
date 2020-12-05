@@ -2,25 +2,25 @@ package ui.conrollers.room
 
 import java.awt.image.BufferedImage
 
-import javafx.application.Platform
 import javafx.embed.swing.SwingFXUtils
 import javafx.fxml.FXML
 import javafx.geometry.Pos
 import javafx.scene.Node
-import javafx.scene.control.{CheckBox, Label}
+import javafx.scene.control.{CheckBox, ComboBox, Label}
 import javafx.scene.image.ImageView
 import javafx.scene.layout.{StackPane, TilePane}
-import media.ImageSegment
+import media.{ImageSegment, Microphone, Webcam}
+import ui.conrollers.Mediator
 import zio.stream._
-import zio.{Fiber, Ref, Task, UIO, ZIO, ZManaged}
+import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
+import ui.runOnFxThread
 
 import scala.util.Try
 
 class RoomController(
+                      mediator: Mediator,
                       val selfTile: Ref[Option[TileInfo]],
-                      val tiles: Ref[Map[Byte, TileInfo]],
-                      selfVideoProcess: Ref[Option[Fiber[Throwable, Unit]]],
-                      videoProcess: Ref[Option[Fiber[Throwable, Unit]]],
+                      val tiles: Ref[Map[Byte, TileInfo]]
                     )(implicit runtime: zio.Runtime[Any]) {
 
   @FXML
@@ -32,11 +32,21 @@ class RoomController(
   @FXML
   var debugPanel: Node = _
 
-  def tilesNum(size: Int): Int =
-    Math.sqrt(size).ceil.toInt
+  @FXML
+  var useAudioCheckBox: CheckBox = _
+
+  @FXML
+  var selectAudioComboBox: ComboBox[String] = _
+
+  @FXML
+  var useVideoCheckBox: CheckBox = _
+
+  @FXML
+  var selectVideoComboBox: ComboBox[String] = _
 
   // ***** Handlers *****
 
+  @FXML
   def addOne(): Unit = {
     runtime.unsafeRunAsync_(
       tiles
@@ -46,6 +56,7 @@ class RoomController(
     )
   }
 
+  @FXML
   def removeOne(): Unit = {
     runtime.unsafeRunAsync_(
       tiles
@@ -68,13 +79,13 @@ class RoomController(
 
   def addUser(userId: Byte, userName: String): Task[Unit] = {
     val imageView = new ImageView()
-    val bufferedImage = new BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)
+    val bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
     val node = makeTileNode(userName, imageView)
     val tileInfo = TileInfo(userName, node, imageInfo = Some(ImageInfo(imageView, bufferedImage)))
 
     for {
       _ <- tiles.update(_.updated(userId, tileInfo))
-      _ <- ZIO(Platform.runLater(() => addTile(node)))
+      _ <- runOnFxThread(() => addTile(node))
     } yield ()
   }
 
@@ -82,7 +93,7 @@ class RoomController(
     tiles
       .modify(tiles => (tiles.get(userId), tiles.removed(userId)))
       .collectM[Any, Throwable, Unit](new NoSuchElementException(s"User $userId is not a member of room")) {
-        case Some(tileInfo) => ZIO(Platform.runLater(() => tilesPane.getChildren.remove(tileInfo.node))).unit
+        case Some(tileInfo) => runOnFxThread(() => tilesPane.getChildren.remove(tileInfo.node))
       }
   }
 
@@ -91,76 +102,79 @@ class RoomController(
     tilesPane.getChildren.add(tileNode)
   }
 
-  def consumeSelfVideo(selfVideoStream: Stream[Throwable, BufferedImage]): Task[Unit] =
-    for {
-      fiber <- selfVideoStream.foreach(image =>
-        selfTile.get.flatMap {
-          selfTile =>
-            ZIO(
-              for {
-                tile <- selfTile
-                imageInfo <- tile.imageInfo
-                _ = imageInfo.imageView.setImage(SwingFXUtils.toFXImage(image, null))
-              } yield ()
-            )
-        }
-      ).forkDaemon
-      maybeOldFiber <- videoProcess.getAndSet(Some(fiber))
-      _ <- ZIO.foreach(maybeOldFiber)(_.interrupt)
-    } yield ()
+  def selfVideoSink: Sink[Throwable, BufferedImage, Any, Unit] =
+    Sink.foreach(image =>
+      selfTile.get.flatMap {
+        selfTile =>
+          ZIO(
+            for {
+              tile <- selfTile
+              imageInfo <- tile.imageInfo
+              _ = imageInfo.imageView.setImage(SwingFXUtils.toFXImage(image, null))
+            } yield ()
+          )
+      }.catchAll(error =>
+        UIO(println(s"Error while consuming self video: $error"))
+      )
+    )
 
   // Process batches if too slow
-  def consumeImageSegments(videoStream: Stream[Throwable, ImageSegment]): Task[Unit] =
-    for {
-      fiber <- videoStream.foreach(imageSegment =>
-        tiles.update(tiles =>
-          (for {
-            tileInfo <- tiles.get(imageSegment.header.userId)
-            imageInfo <- tileInfo.imageInfo
-            newImageInfo = imageInfo.copy(bufferedImage = imageSegment.image)
-            _ = Try(newImageInfo.imageView.setImage(SwingFXUtils.toFXImage(imageSegment.image, null)))
-            newTileInfo = tileInfo.copy(imageInfo = Some(newImageInfo))
-          } yield tiles.updated(imageSegment.header.userId, newTileInfo)).getOrElse(tiles)
-        )
-      ).forkDaemon
-      maybeOldFiber <- videoProcess.getAndSet(Some(fiber))
-      _ <- ZIO.foreach(maybeOldFiber)(_.interrupt)
-    } yield ()
+  def imageSegmentsSink: Sink[Throwable, ImageSegment, Any, Unit] =
+    Sink.foreach { imageSegment =>
+      tiles.update { tiles =>
+        (for {
+          tileInfo <- tiles.get(imageSegment.header.userId)
+          imageInfo <- tileInfo.imageInfo
+          raster = imageSegment.toRaster
+          rasterBounds = raster.getBounds
+          leftX = rasterBounds.x + rasterBounds.width
+          bottomY = rasterBounds.y + rasterBounds.height
+          newTiles = if (leftX > imageInfo.bufferedImage.getWidth && bottomY > imageInfo.bufferedImage.getHeight) {
+            val newBufferedImage = new BufferedImage(leftX, bottomY, BufferedImage.TYPE_INT_RGB)
+            newBufferedImage.setData(imageInfo.bufferedImage.getData())
+            newBufferedImage.setData(raster)
+            tiles.updated(
+              imageSegment.header.userId, tileInfo.copy(imageInfo = Some(imageInfo.copy(bufferedImage = newBufferedImage)))
+            )
+          } else {
+            imageInfo.bufferedImage.setData(raster)
+            tiles
+          }
+          _ = Try(imageInfo.imageView.setImage(SwingFXUtils.toFXImage(imageInfo.bufferedImage, null)))
+        } yield newTiles).getOrElse(tiles)
+      }
+    }
 
-  def start(
-             selfVideoStream: Stream[Throwable, BufferedImage],
-             videoStream: Stream[Throwable, ImageSegment],
-           ): Task[Unit] =
+  def start: Task[Unit] =
     for {
-      _ <- consumeImageSegments(videoStream)
-
+      settings <- mediator.getSettings
       selfImageView = new ImageView
-      selfTileNode = makeTileNode("Это я", selfImageView)
-      bufferedImage = new BufferedImage(600, 400, BufferedImage.TYPE_INT_RGB)
-      selfTileInfo = TileInfo("Это я", selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
+      selfTileNode = makeTileNode(settings.name, selfImageView)
+      bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
+      selfTileInfo = TileInfo(settings.name, selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
       _ <- selfTile.set(Some(selfTileInfo))
-      _ <- ZIO(Platform.runLater(() => addTile(selfTileNode)))
-      _ <- consumeSelfVideo(selfVideoStream)
+
+      audioNames <- Microphone.names()
+      videoNames <- Webcam.names
+
+
+      _ <- runOnFxThread{() =>
+        selectAudioComboBox.getItems.setAll(audioNames: _*)
+        selectVideoComboBox.getItems.setAll(videoNames: _*)
+        selectAudioComboBox.setValue(settings.selectedAudio)
+        selectVideoComboBox.setValue(settings.selectedVideo)
+        useAudioCheckBox.setSelected(settings.useAudio)
+        useVideoCheckBox.setSelected(settings.useVideo)
+        addTile(selfTileNode)
+      }
     } yield ()
 
-  def stop: UIO[Unit] =
-    for {
-      maybeSelfVideoFiber <- selfVideoProcess.getAndSet(None)
-      maybeVideoFiber <- videoProcess.getAndSet(None)
-      _ <- ZIO.foreach(maybeSelfVideoFiber)(_.interrupt)
-      _ <- ZIO.foreach(maybeVideoFiber)(_.interrupt)
-    } yield ()
 }
 
 object RoomController {
-  def acquireRoomController(implicit runtime: zio.Runtime[Any]): UIO[RoomController] =
+  def apply(mediator: Mediator)(implicit runtime: zio.Runtime[Any]): UIO[RoomController] =
     for {
       selfTile <- Ref.make[Option[TileInfo]](None)
       tiles <- Ref.make[Map[Byte, TileInfo]](Map.empty)
-      selfVideoProcess <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
-      videoProcess <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
-    } yield new RoomController(selfTile, tiles, selfVideoProcess, videoProcess)
-
-  def managed(implicit runtime: zio.Runtime[Any]): ZManaged[Any, Throwable, RoomController] =
-    ZManaged.make(acquireRoomController)(_.stop)
+    } yield new RoomController(mediator, selfTile, tiles)
 }

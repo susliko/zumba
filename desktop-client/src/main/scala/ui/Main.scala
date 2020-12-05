@@ -5,7 +5,7 @@ import javafx.scene.layout.{BorderPane, GridPane, HBox}
 import javafx.stage.Stage
 import zio.blocking._
 import zio.console._
-import zio.{ExitCode, Schedule, UIO, URIO, ZIO, ZManaged}
+import zio.{ExitCode, RIO, Schedule, Task, UIO, URIO, ZIO, ZManaged}
 import javafx.fxml.FXMLLoader
 import javafx.scene.{Node, Scene}
 import media.Webcam
@@ -17,24 +17,22 @@ object Main extends zio.App {
   var initialized: Boolean = false
   var primaryStage: Stage = _
 
-  def waitTillStart: ZManaged[Clock, Throwable, Unit] =
-    ZIO().repeat(Schedule.fixed(100.millis).untilInputM(_ => UIO(initialized))).toManaged_.unit
+  def waitTillStart: RIO[Clock, Unit] =
+    ZIO().repeat(Schedule.fixed(100.millis).untilInputM(_ => UIO(initialized))).unit
 
-  def background: ZManaged[zio.ZEnv, Throwable, Unit] =
+  def background: RIO[Clock, Unit] =
     for {
-//      webcam <- Webcam.managed()
       _ <- waitTillStart
-      mediator = new Mediator(Main.primaryStage)
-      _ <- mediator.switchScene(SceneType.Menu)(this).toManaged_
-//      _ <- controllers.roomController.start(webcam.stream, zio.stream.Stream.empty).toManaged_
+      mediator <- Mediator.apply(Main.primaryStage)(this)
+      _ <- mediator.switchScene(SceneType.Menu)
     } yield ()
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     (for {
       bgFiber <- background.fork
-      _ <- effectBlocking(Application.launch(classOf[Main], args: _*)).toManaged_
-      _ <- bgFiber.interrupt.toManaged_
-    } yield ExitCode.success).useNow.catchAllCause(cause => putStrLn(cause.untraced.prettyPrint).as(ExitCode.failure))
+      _ <- effectBlocking(Application.launch(classOf[Main], args: _*))
+      _ <- bgFiber.interrupt
+    } yield ExitCode.success).catchAllCause(cause => putStrLn(cause.untraced.prettyPrint).as(ExitCode.failure))
 }
 
 class Main extends Application {
