@@ -8,15 +8,16 @@ import zio.nio.core.{Buffer, SocketAddress}
 case class MediaClient[T](channel: DatagramChannel)(
   implicit codec: MediaCodec[T]
 ) {
-  def sendSink(hostname: String, port: Int): Sink[Throwable, T, T, Unit] =
+  private def byteSink(hostname: String,
+                       port: Int): Sink[Throwable, Byte, Any, Unit] =
     Sink
       .fromEffect(SocketAddress.inetSocketAddress(hostname, port))
       .flatMap(
         addr =>
-          Sink.foreach(
-            el =>
+          Sink.foreachChunk(
+            chunk =>
               Buffer
-                .byte(codec.toBytes(el))
+                .byte(chunk)
                 .flatMap(
                   buffer =>
                     channel
@@ -25,6 +26,9 @@ case class MediaClient[T](channel: DatagramChannel)(
               )
         )
       )
+
+  def sendSink(hostname: String, port: Int): Sink[Throwable, T, Any, Unit] =
+    byteSink(hostname, port).contramapChunks[T](_.flatMap(codec.toBytes))
 
   def acceptStream(capacity: Int): Stream[Throwable, T] =
     Stream
@@ -46,12 +50,15 @@ case class MediaClient[T](channel: DatagramChannel)(
               r => UIO(List(r))
           )
       )
+
+  def ack(hostname: String, port: Int, bytes: Chunk[Byte]): Task[Unit] =
+    Stream.fromChunk(bytes).run(byteSink(hostname, port))
 }
 
 object MediaClient {
   def managed[T: MediaCodec](localPort: Int): TaskManaged[MediaClient[T]] =
     Managed
-      .fromEffect(SocketAddress.inetSocketAddress(localPort))
+      .fromEffect(SocketAddress.inetSocketAddress(0))
       .flatMap(addr => DatagramChannel.bind(Some(addr)))
       .tap(
         _ => UIO(println(s"Listening for UDP traffic at $localPort")).toManaged_
