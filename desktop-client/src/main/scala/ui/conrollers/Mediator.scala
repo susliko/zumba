@@ -24,14 +24,6 @@ class Mediator(
 
   def getSettings: Task[Settings] = settings.get
 
-  def useWebcam(name: String): TaskManaged[Webcam] =
-    activeController.get.toManaged_.flatMap {
-      case Some(Controller.Menu(menu)) =>
-        Webcam.managedByName(name)
-      case Some(Controller.Room(room)) =>
-        Webcam.managedByName(name)
-    }
-
   def setName(name: String): Task[Unit] =
     activeController.get.flatMap {
       case Some(Controller.Menu(menu)) =>
@@ -40,10 +32,42 @@ class Mediator(
         Task.unit
     }
 
-  def getActiveWebcam: TaskManaged[Webcam] =
-    settings.get.toManaged_.flatMap(options =>
-      Webcam.managedByName(options.selectedVideo)
-    )
+  def selectVideo(name: String): Task[Unit] =
+    for {
+      maybeSelfVideoFiber <- selfVideoFiber.getAndSet(None)
+      _ <- Task.foreach(maybeSelfVideoFiber)(_.interrupt)
+      settings <- settings.updateAndGet(_.copy(selectedVideo = name))
+      _ <- enableVideo.when(settings.useVideo)
+    } yield ()
+
+
+  def enableVideo: Task[Unit] =
+    activeController.get.flatMap {
+      case Some(Controller.Room(room)) =>
+        for {
+          selectedVideo <- settings.get.map(_.selectedVideo)
+          // TODO: Send video and audio to server here
+          fiber <- Webcam.managedByName(selectedVideo).use(webcam =>
+            webcam.stream.run(
+              room.selfVideoSink
+                .zipPar(room.imageSegmentsSink.contramapChunks(kek))
+            )
+          ).unit.forkDaemon
+          maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
+          _ <- Task.foreach(maybeOldSelfVideoFiber)(_.interrupt)
+          _ <- settings.update(_.copy(useVideo = true))
+        } yield ()
+
+      case None =>
+        Task.unit
+    }
+
+  def disableVideo: Task[Unit] =
+    for {
+      maybeSelfVideoFiber <- selfVideoFiber.getAndSet(None)
+      _ <- Task.foreach(maybeSelfVideoFiber)(_.interrupt)
+      _ <- settings.update(_.copy(useVideo = false))
+    } yield ()
 
   def kek(chunk: Chunk[BufferedImage]): Chunk[ImageSegment] =
     chunk
@@ -57,52 +81,56 @@ class Mediator(
           }
       )
 
-  def switchScene(sceneType: SceneType): Task[Unit] =
-    sceneType match {
-      case SceneType.Menu =>
-        val xmlUrl = getClass.getResource("/scenes/menu.fxml")
-        val loader = new FXMLLoader
-        loader.setLocation(xmlUrl)
-        val menuController = new MenuController(this)
-        loader.setController(menuController)
-        val root: GridPane = loader.load
-        (activeController.set(Some(Controller.Menu(menuController))) *>
-          runOnFxThread { () =>
-            primaryStage.setScene(new Scene(root))
-            primaryStage.show()
-            primaryStage.setWidth(600)
-            primaryStage.setHeight(400)
-          }).onError(x => UIO(println(x)))
-
-      case SceneType.Room =>
-        (for {
-          roomController <- RoomController.apply(this)
-          scene <- Task {
-            val xmlUrl = getClass.getResource("/scenes/room.fxml")
-            val loader = new FXMLLoader
-            loader.setController(roomController)
-            loader.setLocation(xmlUrl)
-            val root: BorderPane = loader.load
-            new Scene(root)
-          }
-          _ <- runOnFxThread { () =>
-            primaryStage.setScene(scene)
-            primaryStage.show()
-          }
-          _ <- activeController.set(Some(Controller.Room(roomController)))
-          _ <- roomController.start
-          // TODO: Send video and audio to server here
-          fiber <- getActiveWebcam
-            .use(webcam =>
-              webcam.stream.run(
-                roomController.selfVideoSink
-                  .zipPar(roomController.imageSegmentsSink.contramapChunks(kek))
-              )
-            ).unit.forkDaemon
-          maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
-          _ <- Task.foreach(maybeOldSelfVideoFiber)(_.interrupt)
-        } yield ()).onError(x => UIO(println(x.prettyPrint)))
+  def finalizeController(controller: Controller): Task[Unit] =
+    controller match {
+      case Controller.Menu(menu) =>
+        Task.unit
+      case Controller.Room(room) =>
+        for {
+          maybeSelfVideoFiber <- selfVideoFiber.getAndSet(None)
+          maybeVideoSegmentsFiber <- videoSegmentsFiber.getAndSet(None)
+          _ <- Task.foreach(maybeSelfVideoFiber)(_.interrupt)
+          _ <- Task.foreach(maybeVideoSegmentsFiber)(_.interrupt)
+        } yield ()
     }
+
+  def switchScene(sceneType: SceneType): Task[Unit] =
+    activeController.get.flatMap(maybeController => Task.foreach(maybeController)(finalizeController)) *>
+      (sceneType match {
+        case SceneType.Menu =>
+          val xmlUrl = getClass.getResource("/scenes/menu.fxml")
+          val loader = new FXMLLoader
+          loader.setLocation(xmlUrl)
+          val menuController = new MenuController(this)
+          loader.setController(menuController)
+          val root: GridPane = loader.load
+          (activeController.set(Some(Controller.Menu(menuController))) *>
+            runOnFxThread { () =>
+              primaryStage.setScene(new Scene(root))
+              primaryStage.show()
+              primaryStage.setWidth(600)
+              primaryStage.setHeight(400)
+            }).onError(x => UIO(println(x)))
+
+        case SceneType.Room =>
+          (for {
+            roomController <- RoomController.apply(this)
+            scene <- Task {
+              val xmlUrl = getClass.getResource("/scenes/room.fxml")
+              val loader = new FXMLLoader
+              loader.setController(roomController)
+              loader.setLocation(xmlUrl)
+              val root: BorderPane = loader.load
+              new Scene(root)
+            }
+            _ <- runOnFxThread { () =>
+              primaryStage.setScene(scene)
+              primaryStage.show()
+            }
+            _ <- activeController.set(Some(Controller.Room(roomController)))
+            _ <- roomController.start
+          } yield ()).onError(x => UIO(println(x.prettyPrint)))
+      })
 }
 
 object Mediator {

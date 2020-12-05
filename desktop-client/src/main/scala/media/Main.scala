@@ -28,8 +28,8 @@ object Main extends zio.App {
         case (webcam, client) =>
           client
             .acceptStream(cfg.videoBufSize)
-            .tap(i => UIO(println(s"Got $i")).when(cfg.logPackets))
             .map(_.toRaster)
+            .tap(i => UIO(println(s"Got ${i.getBounds}")).when(cfg.logPackets))
             .runDrain
             .forkDaemon *>
             webcam.stream

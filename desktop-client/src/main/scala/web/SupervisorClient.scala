@@ -1,6 +1,5 @@
 package web
 
-import java.net.http.HttpClient
 import io.circe.generic.JsonCodec
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
@@ -95,14 +94,14 @@ case class SupervisorClient(http: SttpBackend[Task, Any], url: String) {
 }
 
 object SupervisorClient {
-  def managed(url: String): TaskManaged[SupervisorClient] =
-    ZManaged
-      .make(Task {
-        HttpClientZioBackend.usingClient(
-          HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build
-        )
-      })(_.close.ignore)
-      .map(SupervisorClient(_, url))
+  def managed(url: String): TaskManaged[SupervisorClient] = ???
+//    ZManaged
+//      .make(Task {
+//        HttpClientZioBackend.usingClient(
+//          HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build
+//        )
+//      })(_.close.ignore)
+//      .map(SupervisorClient(_, url))
 }
 
 @JsonCodec
