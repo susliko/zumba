@@ -70,7 +70,15 @@ case class ImageSegment(header: ImageHeader, image: BufferedImage) {
   def toRaster: Raster = {
     val width = image.getWidth
     val height = image.getHeight
-    image.getData.createTranslatedChild(width * header.x, height * header.y)
+    image.getData.createChild(
+      0,
+      0,
+      width,
+      height,
+      width * header.x,
+      height * header.y,
+      null
+    )
   }
 
   private def compress(image: BufferedImage, quality: Float): Chunk[Byte] = {
