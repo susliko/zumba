@@ -5,10 +5,10 @@ import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import sttp.client3._
 import sttp.client3.circe._
-import sttp.client3.httpclient.zio.HttpClientZioBackend
+import sttp.client3.asynchttpclient.zio.AsyncHttpClientZioBackend
 import zio._
 
-class UByte(val intValue: Int) {
+class UByte(val intValue: Int) extends AnyVal {
   def toByte: Byte = intValue.toByte
 
   override def toString: String = intValue.toString
@@ -94,14 +94,8 @@ case class SupervisorClient(http: SttpBackend[Task, Any], url: String) {
 }
 
 object SupervisorClient {
-  def managed(url: String): TaskManaged[SupervisorClient] = ???
-//    ZManaged
-//      .make(Task {
-//        HttpClientZioBackend.usingClient(
-//          HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build
-//        )
-//      })(_.close.ignore)
-//      .map(SupervisorClient(_, url))
+  def managed(url: String): TaskManaged[SupervisorClient] =
+    AsyncHttpClientZioBackend.managed().map(SupervisorClient(_, url))
 }
 
 @JsonCodec
