@@ -3,25 +3,27 @@ package main
 import (
 	"context"
 	"github.com/susliko/zumba/server/room/common"
+	"github.com/susliko/zumba/server/room/conference"
 	"github.com/susliko/zumba/server/room/tcp"
 	"github.com/susliko/zumba/server/room/udp"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 )
 
 func run(logger *zap.SugaredLogger) error {
 	ctx := context.Background()
 
+	conferenceMap := conference.NewConferenceMap()
+
 	httpServerConfig := tcp.NewDefaultHTTPServerConfig()
-	httpServer := tcp.NewHTTPServer(logger, httpServerConfig)
+	httpServer := tcp.NewHTTPServer(logger, httpServerConfig, conferenceMap)
 
 	udpServerConfig := udp.NewDefaultServerConfig()
-	updServer := udp.NewServer(logger, udpServerConfig)
+	cache := udp.NewAddressCache()
+	updServer := udp.NewServer(logger, udpServerConfig, conferenceMap, cache)
 
 	ctx, cancel := context.WithCancel(ctx)
 	wg, ctx := errgroup.WithContext(ctx)
@@ -44,14 +46,6 @@ func run(logger *zap.SugaredLogger) error {
 		logger.Infof("Start udp server")
 		return updServer.Run(ctx)
 	})
-
-	time.Sleep(time.Second)
-	clientConfig := udp.NewDefaultClientConfig()
-	client := udp.NewClient(logger, clientConfig)
-	err := client.Send(ctx, udpServerConfig.Address(), strings.NewReader("Hello!"))
-	if err != nil {
-		logger.Errorf("%v", err)
-	}
 
 	return wg.Wait()
 }

@@ -1,6 +1,6 @@
 package media
 
-import java.awt.image.BufferedImage
+import java.awt.image.{BufferedImage, Raster}
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 import javax.imageio.{IIOImage, ImageIO, ImageWriteParam}
@@ -67,6 +67,11 @@ object ImageHeader {
 case class ImageSegment(header: ImageHeader, image: BufferedImage) {
   def toBytes(quality: Float): Chunk[Byte] =
     header.toBytes ++ compress(image, quality)
+  def toRaster: Raster = {
+    val width = image.getWidth
+    val height = image.getHeight
+    image.getData.createTranslatedChild(width * header.x, height * header.y)
+  }
 
   private def compress(image: BufferedImage, quality: Float): Chunk[Byte] = {
     val jpgWriter = ImageIO.getImageWritersByFormatName("JPEG").next
