@@ -61,8 +61,8 @@ class RoomController(
     val label = new Label(userName)
     val tileNode = new StackPane(imageView, label)
     tileNode.setStyle("-fx-border-color: blue; -fx-border-width: 1 ; ")
-//    tilesPane.setPrefRows()!!!
-//    https://stackoverflow.com/questions/43369963/javafx-tile-pane-set-max-number-of-columns
+    //    tilesPane.setPrefRows()!!!
+    //    https://stackoverflow.com/questions/43369963/javafx-tile-pane-set-max-number-of-columns
     tileNode
   }
 
@@ -94,7 +94,7 @@ class RoomController(
   def consumeSelfVideo(selfVideoStream: Stream[Throwable, BufferedImage]): Task[Unit] =
     for {
       fiber <- selfVideoStream.foreach(image =>
-        selfTile.get.flatMap(
+        selfTile.get.flatMap {
           selfTile =>
             ZIO(
               for {
@@ -103,7 +103,7 @@ class RoomController(
                 _ = imageInfo.imageView.setImage(SwingFXUtils.toFXImage(image, null))
               } yield ()
             )
-        )
+        }
       ).forkDaemon
       maybeOldFiber <- videoProcess.getAndSet(Some(fiber))
       _ <- ZIO.foreach(maybeOldFiber)(_.interrupt)
