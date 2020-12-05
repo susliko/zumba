@@ -1,6 +1,5 @@
 package web
 
-import java.net.http.HttpClient
 import io.circe.generic.JsonCodec
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}

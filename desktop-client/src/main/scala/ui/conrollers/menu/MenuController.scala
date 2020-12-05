@@ -12,17 +12,13 @@ class MenuController(mediator: Mediator)(implicit runtime: Runtime[Any]) {
   @FXML
   def enterRoom(): Unit =
     runtime.unsafeRunAsync_(
-      Task(println("Enter!")) *>
-        mediator.switchScene(SceneType.Room)
+      mediator.switchScene(SceneType.Room)
     )
 
   @FXML
   def createRoom(): Unit =
     runtime.unsafeRunAsync_(
-      Task {
-        Task(println("Create!")) *>
-          mediator.switchScene(SceneType.Room)
-      }
+      mediator.switchScene(SceneType.Room)
     )
 
   @FXML
