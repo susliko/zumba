@@ -20,7 +20,8 @@ libraryDependencies ++= Seq(
   "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % "3.0.0-RC10",
   "org.manatki" %% "derevo-circe" % "0.11.5",
   "com.github.sarxos" % "webcam-capture" % "0.3.10",
-  "io.circe" %% "circe-core" % "0.14.0-M1"
+  "io.circe" %% "circe-core" % "0.14.0-M1",
+  "org.manatki" %% "derevo-cats" % "0.11.5"
 )
 
 libraryDependencies ++= Seq(
@@ -49,3 +50,9 @@ libraryDependencies += "org.openjfx" % "javafx-controls" % "11-ea+25" classifier
 libraryDependencies += "org.openjfx" % "javafx-fxml" % "11-ea+25" classifier osName.value
 libraryDependencies += "org.openjfx" % "javafx-graphics" % "11-ea+25" classifier osName.value
 libraryDependencies += "org.openjfx" % "javafx-swing" % "11-ea+25" classifier osName.value
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x                             => MergeStrategy.first
+}
+
+mainClass in assembly := Some("media.Main")
