@@ -8,7 +8,7 @@ import sttp.client3.circe._
 import sttp.client3.asynchttpclient.zio.AsyncHttpClientZioBackend
 import zio._
 
-class UByte(val intValue: Int) {
+class UByte(val intValue: Int) extends AnyVal {
   def toByte: Byte = intValue.toByte
 
   override def toString: String = intValue.toString
