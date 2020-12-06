@@ -1,8 +1,9 @@
 package web
 
 import io.circe.generic.JsonCodec
+import io.circe.generic.extras.Configuration
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder}
+import io.circe.{Decoder, Encoder, Json}
 import sttp.client3._
 import sttp.client3.circe._
 import sttp.client3.asynchttpclient.zio.AsyncHttpClientZioBackend
@@ -21,11 +22,23 @@ object UByte {
 }
 
 @JsonCodec
-case class Room(room_id: UByte,
-                users: List[User] = Nil,
-                worker_host: String,
+case class Room(worker_host: String,
                 worker_video_port: Int,
                 worker_audio_port: Int,
+)
+
+@JsonCodec
+case class RoomWithId(room_id: UByte,
+                      worker_host: String,
+                      worker_video_port: Int,
+                      worker_audio_port: Int,
+)
+
+@JsonCodec
+case class RoomWithUsers(users: Map[String, User],
+                         worker_host: String,
+                         worker_video_port: Int,
+                         worker_audio_port: Int,
 )
 
 @JsonCodec
@@ -56,26 +69,35 @@ case class SupervisorClient(http: SttpBackend[Task, Any], url: String) {
         .unit
   }
 
-  def createRoom(userId: UserId): Task[Room] =
-    postWithBody[CreateRoom, Room](CreateRoom(userId), List("room", "create"))
+  def createRoom(userId: UserId): Task[RoomWithId] =
+    postWithBody[CreateRoom, RoomWithId](
+      CreateRoom(userId),
+      List("room", "create")
+    )
   def joinRoom(roomId: RoomId, userId: UserId): Task[Room] =
     postWithBody[JoinRoom, Room](JoinRoom(userId, roomId), List("room", "join"))
-  def roomInfo(roomId: RoomId): Task[Room] = {
+  def roomInfo(roomId: RoomId): Task[RoomWithUsers] = {
     val req = basicRequest
       .get(uri"$url".addPath("room", "id", roomId.toString))
-      .response(asJson[Room])
-    UIO(println(req)) *>
+      .response(asJson[RoomWithUsers])
+    UIO(println(req.toCurl)) *>
       http
         .send(req)
         .tap(r => UIO(println(r.toString())))
         .flatMap(_.body.fold(Task.fail(_), r => UIO(r)))
   }
 
-  def leaveRoom(roomId: RoomId, userId: UserId): Task[Unit] =
-    postWithBody[LeaveRoom, Unit](
-      LeaveRoom(userId, roomId),
-      List("room", "leave")
-    ).unit
+  def leaveRoom(roomId: RoomId, userId: UserId): Task[Unit] = {
+    val req =
+      basicRequest
+        .post(uri"$url/room/leave/")
+        .body(LeaveRoom(userId, roomId).asJson.noSpaces)
+    UIO(println(req.toCurl)) *>
+      http
+        .send(req.response(asJson[Json]))
+        .tap(r => UIO(println(r.toString())))
+        .unit
+  }
 
   private def postWithBody[R: Encoder, D: Decoder](
     body: R,

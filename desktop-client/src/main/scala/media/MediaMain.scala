@@ -17,7 +17,7 @@ object MediaMain extends zio.App {
       _ <- putStrLn("")
       _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
       _ <- putStrLn("")
-      _ <- udpVideoStream(cfg)
+      _ <- supervisorTest(cfg)
     } yield ExitCode.success)
       .catchAllCause(c => UIO(println(c.untraced)).as(ExitCode.success))
 
@@ -87,8 +87,11 @@ object MediaMain extends zio.App {
             room <- client.createRoom(user1)
             _ <- client.joinRoom(room.room_id, user2)
             info <- client.roomInfo(room.room_id)
+            _ <- putStrLn(s"Got info $info")
             _ <- client.leaveRoom(room.room_id, user1)
             _ <- client.leaveRoom(room.room_id, user2)
+            _ <- client.removeUser(user1)
+            _ <- client.removeUser(user2)
           } yield ()
       )
 }
