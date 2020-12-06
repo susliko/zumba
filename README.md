@@ -8,4 +8,4 @@
 
 ## How Zumba works
 On startup the application registers itself on a `Supervisor` server, obtaining `userId`.
-After creating/joining a room, it starts to transmit media Datagram packets (audio and video separately) to the `Rumba` server and to listen for incoming packets. Each packet is provided with header, containing `userId` and `roomId`. `Supervisor` manages rooms and `Rumba` workers, which dispatch packets between users. Video is ripped into tiles, compressed with JPEG to ensure low network bandwith usage. 
+After creating/joining a room, it starts to transmit media Datagram packets (audio and video separately) to the `Rumba` server and to listen for incoming packets. Each packet is provided with header, containing `userId` and `roomId`. `Supervisor` manages rooms and `Rumba` workers, which dispatch packets between users. Video is ripped into tiles, compressed with JPEG to ensure small package size and low network bandwith usage. 
