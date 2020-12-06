@@ -11,11 +11,11 @@ import (
 )
 
 type ServerConfig struct {
-	Host          string
-	AudioPort     uint16
-	VideoPort     uint16
-	TextPort      uint16
-	MaxBufferSize uint16
+	Host          string	 `config:"host"`
+	AudioPort     uint16	 `config:"audio_port"`
+	VideoPort     uint16	 `config:"video_port"`
+	TextPort      uint16	 `config:"text_port"`
+	MaxBufferSize uint16	 `config:"max_buffer_size"`
 }
 
 func NewDefaultServerConfig() *ServerConfig {
@@ -107,7 +107,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 			tmp := make([]byte, n)
 			copy(tmp, buffer[:n])
 
-			go func(tmp []byte, msgId uint64) {
+			go func(tmp []byte, n int, msgId uint64, addr net.Addr) {
 				logger := server.logger.With(zap.Uint64("msg_id", msgId))
 				msg, err := ParseMessageFromBytes(n, tmp)
 				if err != nil {
@@ -116,6 +116,11 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 				}
 				server.cache.Save(msg.User, addr)
 				logger = logger.With(zap.Uint8("conference", msg.Conference), zap.Uint8("user", msg.User))
+				if n <= 2 {
+					// This is just ACK message, without data
+					return
+				}
+
 				logger.Infof("start sending msg")
 
 				users, err := server.conferenceMap.GetConferenceUsers(msg.Conference)
@@ -123,22 +128,24 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 					logger.Errorf("while getting conference users an error occurred: %v", err)
 					return
 				}
-				logger.Debug("send msg to users: %v", users)
+				logger.Debugf("send msg to users: %v", users)
 
 				for _, user := range users {
 					user := user
 					if user == msg.User {
-						logger.Debug("don't send msg to user: %d", user)
+						logger.Debugf("don't send msg to user: %d", user)
 						continue
 					}
-					logger.Debug("send msg to user: %d", user)
+					logger.Debugf("send msg to user: %d", user)
 
 					go func(user uint8, bytes []byte) {
+						logger.Debugf("get addr for user %d", user)
 						addr, isHaveAddr := server.cache.Get(user)
 						if !isHaveAddr {
 							logger.Errorf("can't find addr for user: %d", user)
 							return
 						}
+						logger.Debugf("addr for user %d is %v", user, addr)
 
 						err = pc.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 						if err != nil {
@@ -154,7 +161,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 						logger.Infof("udp-packet-written: bytes=%d to=%s", n, addr.String())
 					}(user, msg.Content)
 				}
-			}(tmp, server.lastMsgId)
+			}(tmp, n, server.lastMsgId, addr)
 			server.lastMsgId += 1
 		}
 	})
