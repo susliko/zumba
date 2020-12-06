@@ -90,6 +90,7 @@ class Mediator(
       case Some(Controller.Room(room)) =>
         for {
           selectedMicrophone <- settingsRef.get.map(_.selectedMicrophone)
+          settings <- settingsRef.get
           // TODO: Send audio to server here
           fiber <- Microphone.managedByName(selectedMicrophone)
             .use(mic =>
@@ -98,11 +99,11 @@ class Mediator(
                 .mapChunks(
                   chunk =>
                     Chunk(
-                      AudioSegment(AudioHeader(config.roomId, config.userId), chunk)
+                      AudioSegment(AudioHeader(settings.roomId.toByte, settings.userId.toByte), chunk)
                     )
                 )
                 .tap(c => UIO(println(s"Sending $c")).when(config.logPackets))
-                .run(audioClient.sendSink(config.rumbaHost, config.rumbaAudioPort))
+                .run(audioClient.sendSink(settings.workerHost, settings.workerAudioPort))
             )
             .onError(x => UIO(println(x.untraced.prettyPrint))).forkDaemon
           maybeOldMicrophoneFiber <- microphoneFiber.getAndSet(Some(fiber))
@@ -173,10 +174,11 @@ class Mediator(
         for {
           selectedWebcam <- settingsRef.get.map(_.selectedWebcam)
           // TODO: Send video to server here
+          settings <- settingsRef.get
           fiber <- Webcam.managedByName(selectedWebcam).use(webcam =>
             webcam.stream.run(
               room.selfVideoSink
-                .zipPar(imageClient.sendSink(config.rumbaHost, config.rumbaVideoPort).contramapChunks(images => images.flatMap(image => ImageSegment.fromImage(image, config.roomId, config.userId))))
+                .zipPar(imageClient.sendSink(settings.workerHost, settings.workerVideoPort).contramapChunks(images => images.flatMap(image => ImageSegment.fromImage(image, settings.roomId.toByte, settings.userId.toByte))))
             )
           ).unit.forkDaemon
           maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
@@ -284,8 +286,9 @@ class Mediator(
               primaryStage.show()
             }
             _ <- activeController.set(Some(Controller.Room(roomController)))
-            _ <- audioClient.ack(config.rumbaHost, config.rumbaAudioPort, AudioHeader(1, 1).toBytes).forkDaemon
-            _ <- imageClient.ack(config.rumbaHost, config.rumbaVideoPort, ImageHeader(config.roomId, config.userId, 1, 1).toBytes).forkDaemon
+            settings <- settingsRef.get
+            _ <- audioClient.ack(settings.workerHost, settings.workerAudioPort, AudioHeader(1, 1).toBytes).forkDaemon
+            _ <- imageClient.ack(settings.workerHost, settings.workerVideoPort, ImageHeader(settings.roomId.toByte, settings.userId.toByte, 1, 1).toBytes).forkDaemon
             _ <- roomController.start
             fiber <- imageClient
               .acceptStream(config.videoBufSize * 10)
