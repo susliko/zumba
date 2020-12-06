@@ -15,6 +15,7 @@ import ui.conrollers.{Mediator, SceneType}
 import zio.stream._
 import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
 import ui.runOnFxThread
+import web.User
 import zio.blocking.Blocking
 
 import scala.util.Try
@@ -170,6 +171,13 @@ class RoomController(
         case Some(tileInfo) => runOnFxThread(() => tilesPane.getChildren.remove(tileInfo.node))
       }
   }
+
+  def updateUsers(users: List[User]): Task[Unit] =
+    for {
+      tiles <- tilesRef.get
+      _ <- Task.foreach(users)(user => addUser(user.id.toByte, user.name).unless(tiles.contains(user.id.toByte)).ignore)
+      _ <- Task.foreach(tiles.keySet -- users.map(_.id.toByte))(id => removeUser(id).ignore)
+    } yield ()
 
   def addTile(tileNode: StackPane): Unit = {
     tileNode.setAlignment(Pos.CENTER)

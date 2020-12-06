@@ -28,6 +28,7 @@ class Mediator(
                 playbackFiber: Ref[Option[Fiber[Throwable, Unit]]],
                 selfVideoFiber: Ref[Option[Fiber[Throwable, Unit]]],
                 imageSegmentsFiber: Ref[Option[Fiber[Throwable, Unit]]],
+                roomUpdaterFiber: Ref[Option[Fiber[Throwable, Unit]]],
               )(implicit runtime: Runtime[Blocking]) {
 
   def shutdownFiber(ref: Ref[Option[Fiber[Throwable, Unit]]]): UIO[Unit] =
@@ -224,6 +225,7 @@ class Mediator(
       _ <- shutdownFiber(imageSegmentsFiber)
       _ <- shutdownFiber(microphoneFiber)
       _ <- shutdownFiber(playbackFiber)
+      _ <- shutdownFiber(roomUpdaterFiber)
       settings <- settingsRef.get
       _ <- activeController.get.flatMap {
         case Some(Controller.Room(_)) =>
@@ -244,6 +246,7 @@ class Mediator(
           _ <- shutdownFiber(imageSegmentsFiber)
           _ <- shutdownFiber(microphoneFiber)
           _ <- shutdownFiber(playbackFiber)
+          _ <- shutdownFiber(roomUpdaterFiber)
           settings <- settingsRef.get
           _ <- (
             supervisorClient.leaveRoom(settings.roomId, settings.userId).ignore *>
@@ -251,6 +254,20 @@ class Mediator(
             ).forkDaemon
         } yield ()
     }
+
+  val updateRoom: Task[Unit] =
+    activeController.get.flatMap {
+      case Some(Controller.Room(room)) =>
+        for {
+          settings <- settingsRef.get
+          roomInfo <- supervisorClient.roomInfo(settings.roomId)
+          _ <- room.updateUsers(roomInfo.users.values.toList.filterNot(_.id == settings.userId))
+          _ <- updateRoom
+        } yield ()
+      case _ =>
+        Task.unit
+    }
+
 
   def switchScene(sceneType: SceneType): Task[Unit] =
     activeController.get.flatMap(maybeController => Task.foreach(maybeController)(finalizeController)) *>
@@ -290,13 +307,16 @@ class Mediator(
             _ <- audioClient.ack(settings.workerHost, settings.workerAudioPort, AudioHeader(1, 1).toBytes).forkDaemon
             _ <- imageClient.ack(settings.workerHost, settings.workerVideoPort, ImageHeader(settings.roomId.toByte, settings.userId.toByte, 1, 1).toBytes).forkDaemon
             _ <- roomController.start
-            fiber <- imageClient
+            isf <- imageClient
               .acceptStream(config.videoBufSize * 10)
               .run(roomController.imageSegmentsSink)
               .interruptible
               .forkDaemon
-            maybeOldFiber <- imageSegmentsFiber.getAndSet(Some(fiber))
-            _ <- Task.foreach(maybeOldFiber)(_.interrupt)
+            maybeOldIsf <- imageSegmentsFiber.getAndSet(Some(isf))
+            _ <- Task.foreach(maybeOldIsf)(_.interrupt)
+            ruf <- updateRoom.forkDaemon
+            maybeOldRuf <- roomUpdaterFiber.getAndSet(Some(ruf))
+            _ <- Task.foreach(maybeOldRuf)(_.interrupt)
           } yield ()).onError(x => UIO(println(x.prettyPrint)))
       })
 }
@@ -334,7 +354,22 @@ object Mediator {
       playbackFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
-    } yield new Mediator(config, primaryStage, imageClient, audioClient, supervisorClient, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber)
+      roomUpdaterFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
+    } yield
+      new Mediator(
+        config,
+        primaryStage,
+        imageClient,
+        audioClient,
+        supervisorClient,
+        inputOptions,
+        activeController,
+        microphoneFiber,
+        playbackFiber,
+        selfVideoFiber,
+        videoSegmentsFiber,
+        roomUpdaterFiber
+      )
 
   def apply(config: ZumbaConfig, primaryStage: Stage)(implicit runtime: Runtime[Blocking]): TaskManaged[Mediator] =
     for {

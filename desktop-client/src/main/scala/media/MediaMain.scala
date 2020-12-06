@@ -17,7 +17,7 @@ object MediaMain extends zio.App {
       _ <- putStrLn("")
       _ <- putStrLn(s"Available audio outputs:\n${playbacks.mkString("\n")}")
       _ <- putStrLn("")
-      _ <- supervisorTest(cfg)
+      _ <- udpPlaybackStream(cfg)
     } yield ExitCode.success)
       .catchAllCause(c => UIO(println(c.untraced)).as(ExitCode.success))
 
