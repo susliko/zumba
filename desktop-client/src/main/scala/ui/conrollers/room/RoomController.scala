@@ -9,7 +9,7 @@ import javafx.scene.Node
 import javafx.scene.control.{CheckBox, ComboBox, Label}
 import javafx.scene.image.ImageView
 import javafx.scene.layout.{StackPane, TilePane}
-import media.{ImageSegment, Microphone, Webcam}
+import media.{ImageSegment, Microphone, Playback, Webcam}
 import ui.conrollers.{Mediator, SceneType}
 import zio.stream._
 import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
@@ -37,6 +37,12 @@ class RoomController(
 
   @FXML
   var selectMicrophoneComboBox: ComboBox[String] = _
+
+  @FXML
+  var usePlaybackCheckBox: CheckBox = _
+
+  @FXML
+  var selectPlaybackComboBox: ComboBox[String] = _
 
   @FXML
   var useWebcamCheckBox: CheckBox = _
@@ -85,6 +91,24 @@ class RoomController(
   }
 
   @FXML
+  def switchPlayback(): Unit = {
+    runtime.unsafeRunAsync_(
+      if (usePlaybackCheckBox.isSelected) {
+        mediator.enablePlayback
+      } else {
+        mediator.disablePlayback
+      }
+    )
+  }
+
+  @FXML
+  def selectPlayback(): Unit = {
+    runtime.unsafeRunAsync_(
+      mediator.selectPlayback(selectPlaybackComboBox.getValue)
+    )
+  }
+
+  @FXML
   def switchWebcam(): Unit = {
     runtime.unsafeRunAsync_(
       if (useWebcamCheckBox.isSelected) {
@@ -104,10 +128,8 @@ class RoomController(
 
   @FXML
   def leave(): Unit = {
-    println("LEAVE")
     runtime.unsafeRunAsync_(
-      UIO(println("RUN LEAVE")) *>
-        mediator.switchScene(SceneType.Menu)
+      mediator.switchScene(SceneType.Menu)
     )
   }
 
@@ -200,17 +222,20 @@ class RoomController(
       bufferedImage = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB)
       selfTileInfo = TileInfo(settings.name, selfTileNode, Some(ImageInfo(selfImageView, bufferedImage)))
       _ <- selfTileRef.set(Some(selfTileInfo))
-      _ <- mediator.enableWebcam.when(settings.useWebcam)
 
-      audioNames <- Microphone.names()
+      microphoneNames <- Microphone.names()
+      playbackNames <- Playback.names()
       webcamNames <- Webcam.names
 
       _ <- runOnFxThread { () =>
-        selectMicrophoneComboBox.getItems.setAll(audioNames: _*)
+        selectMicrophoneComboBox.getItems.setAll(microphoneNames: _*)
+        selectPlaybackComboBox.getItems.setAll(playbackNames: _*)
         selectWebcamComboBox.getItems.setAll(webcamNames: _*)
         selectMicrophoneComboBox.setValue(settings.selectedMicrophone)
+        selectPlaybackComboBox.setValue(settings.selectedPlayback)
         selectWebcamComboBox.setValue(settings.selectedWebcam)
         useMicrophoneCheckBox.setSelected(settings.useMicrophone)
+        usePlaybackCheckBox.setSelected(settings.usePlayback)
         useWebcamCheckBox.setSelected(settings.useWebcam)
         addTile(selfTileNode)
       }

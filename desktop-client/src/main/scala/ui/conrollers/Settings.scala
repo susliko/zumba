@@ -6,6 +6,6 @@ final case class Settings(
                            usePlayback: Boolean,
                            useWebcam: Boolean,
                            selectedMicrophone: String,
-                           selectedPlayBack: String,
+                           selectedPlayback: String,
                            selectedWebcam: String
                          )
