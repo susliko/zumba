@@ -11,11 +11,11 @@ import (
 )
 
 type ServerConfig struct {
-	Host          string
-	AudioPort     uint16
-	VideoPort     uint16
-	TextPort      uint16
-	MaxBufferSize uint16
+	Host          string	 `config:"host"`
+	AudioPort     uint16	 `config:"audio_port"`
+	VideoPort     uint16	 `config:"video_port"`
+	TextPort      uint16	 `config:"text_port"`
+	MaxBufferSize uint16	 `config:"max_buffer_size"`
 }
 
 func NewDefaultServerConfig() *ServerConfig {
@@ -107,7 +107,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 			tmp := make([]byte, n)
 			copy(tmp, buffer[:n])
 
-			go func(tmp []byte, msgId uint64, addr net.Addr) {
+			go func(tmp []byte, n int, msgId uint64, addr net.Addr) {
 				logger := server.logger.With(zap.Uint64("msg_id", msgId))
 				msg, err := ParseMessageFromBytes(n, tmp)
 				if err != nil {
@@ -116,6 +116,11 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 				}
 				server.cache.Save(msg.User, addr)
 				logger = logger.With(zap.Uint8("conference", msg.Conference), zap.Uint8("user", msg.User))
+				if n <= 2 {
+					// This is just ACK message, without data
+					return
+				}
+
 				logger.Infof("start sending msg")
 
 				users, err := server.conferenceMap.GetConferenceUsers(msg.Conference)
@@ -156,7 +161,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 						logger.Infof("udp-packet-written: bytes=%d to=%s", n, addr.String())
 					}(user, msg.Content)
 				}
-			}(tmp, server.lastMsgId, addr)
+			}(tmp, n, server.lastMsgId, addr)
 			server.lastMsgId += 1
 		}
 	})
