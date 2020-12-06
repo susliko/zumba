@@ -199,7 +199,7 @@ class RoomController(
         (for {
           tileInfo <- tiles.get(imageSegment.header.userId)
           imageInfo <- tileInfo.imageInfo
-          raster = imageSegment.toRaster
+          raster <- Try(imageSegment.toRaster).toOption
           rasterBounds = raster.getBounds
           leftX = rasterBounds.x + rasterBounds.width
           bottomY = rasterBounds.y + rasterBounds.height
@@ -214,7 +214,7 @@ class RoomController(
             imageInfo.bufferedImage.setData(raster)
             tiles
           }
-          _ = Try(imageInfo.imageView.setImage(SwingFXUtils.toFXImage(imageInfo.bufferedImage, null)))
+          _ <- Try(imageInfo.imageView.setImage(SwingFXUtils.toFXImage(imageInfo.bufferedImage, null))).toOption
         } yield newTiles).getOrElse(tiles)
       }
     }
