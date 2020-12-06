@@ -57,4 +57,4 @@ assemblyMergeStrategy in assembly := {
   case x                             => MergeStrategy.first
 }
 
-mainClass in assembly := Some("media.Main")
+mainClass in assembly := Some("media.MediaMain")
