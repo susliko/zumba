@@ -107,7 +107,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 			tmp := make([]byte, n)
 			copy(tmp, buffer[:n])
 
-			go func(tmp []byte, msgId uint64) {
+			go func(tmp []byte, msgId uint64, addr net.Addr) {
 				logger := server.logger.With(zap.Uint64("msg_id", msgId))
 				msg, err := ParseMessageFromBytes(n, tmp)
 				if err != nil {
@@ -123,22 +123,24 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 					logger.Errorf("while getting conference users an error occurred: %v", err)
 					return
 				}
-				logger.Debug("send msg to users: %v", users)
+				logger.Debugf("send msg to users: %v", users)
 
 				for _, user := range users {
 					user := user
 					if user == msg.User {
-						logger.Debug("don't send msg to user: %d", user)
+						logger.Debugf("don't send msg to user: %d", user)
 						continue
 					}
-					logger.Debug("send msg to user: %d", user)
+					logger.Debugf("send msg to user: %d", user)
 
 					go func(user uint8, bytes []byte) {
+						logger.Debugf("get addr for user %d", user)
 						addr, isHaveAddr := server.cache.Get(user)
 						if !isHaveAddr {
 							logger.Errorf("can't find addr for user: %d", user)
 							return
 						}
+						logger.Debugf("addr for user %d is %v", user, addr)
 
 						err = pc.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
 						if err != nil {
@@ -154,7 +156,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 						logger.Infof("udp-packet-written: bytes=%d to=%s", n, addr.String())
 					}(user, msg.Content)
 				}
-			}(tmp, server.lastMsgId)
+			}(tmp, server.lastMsgId, addr)
 			server.lastMsgId += 1
 		}
 	})
