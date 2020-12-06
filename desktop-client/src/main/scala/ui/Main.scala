@@ -20,17 +20,17 @@ object Main extends zio.App {
   def waitTillStart: RIO[Clock, Unit] =
     ZIO().repeat(Schedule.fixed(100.millis).untilInputM(_ => UIO(initialized))).unit
 
-  def background: RIO[Clock, Unit] =
+  def background: ZManaged[Clock, Throwable, Unit] =
     for {
-      config <- ZumbaConfig.withProps
-      _ <- waitTillStart
+      config <- ZumbaConfig.withProps.toManaged_
+      _ <- waitTillStart.toManaged_
       mediator <- Mediator.apply(config, Main.primaryStage)(this)
-      _ <- mediator.switchScene(SceneType.Menu)
+      _ <- mediator.switchScene(SceneType.Menu).toManaged_
     } yield ()
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     (for {
-      bgFiber <- background.fork
+      bgFiber <- background.useForever.fork
       _ <- effectBlocking(Application.launch(classOf[Main], args: _*))
       _ <- bgFiber.interrupt
     } yield ExitCode.success).catchAllCause(cause => putStrLn(cause.untraced.prettyPrint).as(ExitCode.failure))
