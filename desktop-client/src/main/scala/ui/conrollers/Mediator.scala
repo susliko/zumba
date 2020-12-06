@@ -7,10 +7,10 @@ import javafx.fxml.FXMLLoader
 import javafx.scene.Scene
 import javafx.scene.layout.{BorderPane, GridPane}
 import javafx.stage.Stage
-import media.{AudioHeader, AudioSegment, ImageSegment, Microphone, Playback, Webcam, ZumbaConfig}
+import media.{AudioHeader, AudioSegment, ImageHeader, ImageSegment, Microphone, Playback, Webcam, ZumbaConfig}
 import ui.conrollers.menu.MenuController
 import ui.conrollers.room.RoomController
-import web.MediaClient
+import web.{MediaClient, SupervisorClient, UByte}
 import zio.blocking.Blocking
 import zio.{Chunk, Fiber, RIO, Ref, Runtime, Task, TaskManaged, UIO, ZManaged}
 
@@ -21,6 +21,7 @@ class Mediator(
                 primaryStage: Stage,
                 imageClient: MediaClient[ImageSegment],
                 audioClient: MediaClient[AudioSegment],
+                supervisorClient: SupervisorClient,
                 settingsRef: Ref[Settings],
                 activeController: Ref[Option[Controller]],
                 microphoneFiber: Ref[Option[Fiber[Throwable, Unit]]],
@@ -46,6 +47,42 @@ class Mediator(
         Task.unit
     }
 
+  // ***** Room managment *****
+
+  def createRoom: Task[Unit] =
+    for {
+      settings <- settingsRef.get
+      userId <- supervisorClient.createUser(settings.name)
+      roomWithId <- supervisorClient.createRoom(userId)
+      _ <- settingsRef.update(_.copy(
+        userId = userId,
+        roomId = roomWithId.room_id,
+        workerHost = roomWithId.worker_host,
+        workerAudioPort = roomWithId.worker_audio_port,
+        workerVideoPort = roomWithId.worker_video_port
+      ))
+      _ <- UIO(println(s"User id: $userId"))
+      _ <- UIO(println(s"Room with id: $roomWithId"))
+      _ <- switchScene(SceneType.Room)
+    } yield ()
+
+  def joinRoom(roomId: UByte): Task[Unit] =
+    for {
+      settings <- settingsRef.get
+      userId <- supervisorClient.createUser(settings.name)
+      room <- supervisorClient.joinRoom(roomId, userId)
+      _ <- settingsRef.update(_.copy(
+        userId = userId,
+        roomId = roomId,
+        workerHost = room.worker_host,
+        workerAudioPort = room.worker_audio_port,
+        workerVideoPort = room.worker_video_port
+      ))
+      _ <- UIO(println(s"User id: $userId"))
+      _ <- UIO(println(s"Room: $room"))
+      _ <- switchScene(SceneType.Room)
+    } yield ()
+
   // ***** Microphone *****
 
   def enableMicrophone: RIO[Blocking, Unit] =
@@ -56,21 +93,16 @@ class Mediator(
           // TODO: Send audio to server here
           fiber <- Microphone.managedByName(selectedMicrophone)
             .use(mic =>
-              audioClient.ack(
-                config.rumbaHost,
-                config.rumbaAudioPort,
-                AudioHeader(1, 1).toBytes
-              ) *>
-                mic
-                  .stream(config.audioBufSize)
-                  .mapChunks(
-                    chunk =>
-                      Chunk(
-                        AudioSegment(AudioHeader(config.roomId, config.userId), chunk)
-                      )
-                  )
-                  .tap(c => UIO(println(s"Sending $c")).when(config.logPackets))
-                  .run(audioClient.sendSink(config.rumbaHost, config.rumbaAudioPort))
+              mic
+                .stream(config.audioBufSize)
+                .mapChunks(
+                  chunk =>
+                    Chunk(
+                      AudioSegment(AudioHeader(config.roomId, config.userId), chunk)
+                    )
+                )
+                .tap(c => UIO(println(s"Sending $c")).when(config.logPackets))
+                .run(audioClient.sendSink(config.rumbaHost, config.rumbaAudioPort))
             )
             .onError(x => UIO(println(x.untraced.prettyPrint))).forkDaemon
           maybeOldMicrophoneFiber <- microphoneFiber.getAndSet(Some(fiber))
@@ -190,6 +222,13 @@ class Mediator(
       _ <- shutdownFiber(imageSegmentsFiber)
       _ <- shutdownFiber(microphoneFiber)
       _ <- shutdownFiber(playbackFiber)
+      settings <- settingsRef.get
+      _ <- activeController.get.flatMap {
+        case Some(Controller.Room(_)) =>
+          supervisorClient.leaveRoom(settings.roomId, settings.userId).ignore *>
+            supervisorClient.removeUser(settings.userId).ignore
+        case _ => Task.unit
+      }
     } yield ()
 
   def finalizeController(controller: Controller): Task[Unit] =
@@ -203,6 +242,11 @@ class Mediator(
           _ <- shutdownFiber(imageSegmentsFiber)
           _ <- shutdownFiber(microphoneFiber)
           _ <- shutdownFiber(playbackFiber)
+          settings <- settingsRef.get
+          _ <- (
+            supervisorClient.leaveRoom(settings.roomId, settings.userId).ignore *>
+              supervisorClient.removeUser(settings.userId).ignore
+            ).forkDaemon
         } yield ()
     }
 
@@ -240,6 +284,8 @@ class Mediator(
               primaryStage.show()
             }
             _ <- activeController.set(Some(Controller.Room(roomController)))
+            _ <- audioClient.ack(config.rumbaHost, config.rumbaAudioPort, AudioHeader(1, 1).toBytes).forkDaemon
+            _ <- imageClient.ack(config.rumbaHost, config.rumbaVideoPort, ImageHeader(config.roomId, config.userId, 1, 1).toBytes).forkDaemon
             _ <- roomController.start
             fiber <- imageClient
               .acceptStream(config.videoBufSize * 10)
@@ -254,23 +300,44 @@ class Mediator(
 
 object Mediator {
 
-  def acquireMediator(config: ZumbaConfig, primaryStage: Stage, imageClient: MediaClient[ImageSegment], audioClient: MediaClient[AudioSegment])(implicit runtime: Runtime[Blocking]): Task[Mediator] =
+  def acquireMediator(
+                       config: ZumbaConfig,
+                       primaryStage: Stage,
+                       imageClient: MediaClient[ImageSegment],
+                       audioClient: MediaClient[AudioSegment],
+                       supervisorClient: SupervisorClient
+                     )(implicit runtime: Runtime[Blocking]): Task[Mediator] =
     for {
       microphoneNames <- Microphone.names()
       playbackNames <- Playback.names()
       videoNames <- Webcam.names
-      inputOptions <- Ref.make(Settings("Это я", useMicrophone = true, usePlayback = true, useWebcam = true, microphoneNames.head, playbackNames.head, videoNames.head))
+      inputOptions <- Ref.make(
+        Settings(
+          "Это я",
+          useMicrophone = true,
+          usePlayback = true,
+          useWebcam = true,
+          microphoneNames.head,
+          playbackNames.head,
+          videoNames.head,
+          userId = new UByte(0),
+          roomId = new UByte(0),
+          workerHost = config.rumbaHost,
+          workerVideoPort = config.rumbaVideoPort,
+          config.rumbaAudioPort
+        ))
       activeController <- Ref.make[Option[Controller]](None)
       microphoneFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       playbackFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
-    } yield new Mediator(config, primaryStage, imageClient, audioClient, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber)
+    } yield new Mediator(config, primaryStage, imageClient, audioClient, supervisorClient, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber)
 
   def apply(config: ZumbaConfig, primaryStage: Stage)(implicit runtime: Runtime[Blocking]): TaskManaged[Mediator] =
     for {
       imageClient <- MediaClient.managed[ImageSegment](config.localVideoPort)
       audioClient <- MediaClient.managed[AudioSegment](config.localAudioPort)
-      mediator <- ZManaged.make(acquireMediator(config, primaryStage, imageClient, audioClient))(_.release)
+      supervisorClient <- SupervisorClient.managed(config.supervisorUrl)
+      mediator <- ZManaged.make(acquireMediator(config, primaryStage, imageClient, audioClient, supervisorClient))(_.release)
     } yield mediator
 }

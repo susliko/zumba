@@ -3,6 +3,7 @@ package ui.conrollers.menu
 import javafx.fxml.FXML
 import javafx.scene.control.TextField
 import ui.conrollers.{Mediator, SceneType}
+import web.UByte
 import zio.blocking.Blocking
 import zio.{Runtime, Task}
 
@@ -11,15 +12,18 @@ class MenuController(mediator: Mediator)(implicit runtime: Runtime[Blocking]) {
   var nameTextField: TextField = _
 
   @FXML
+  var roomTextField: TextField = _
+
+  @FXML
   def enterRoom(): Unit =
     runtime.unsafeRunAsync_(
-      mediator.switchScene(SceneType.Room)
+      mediator.joinRoom(new UByte(roomTextField.getText.toInt))
     )
 
   @FXML
   def createRoom(): Unit =
     runtime.unsafeRunAsync_(
-      mediator.switchScene(SceneType.Room)
+      mediator.createRoom
     )
 
   @FXML

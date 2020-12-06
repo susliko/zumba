@@ -28,7 +28,7 @@
             <Insets top="10" bottom="10" left="10" right="10"/>
         </padding>
         <Text>Войти в существующую комнату</Text>
-        <TextField promptText="Номер комнаты"/>
+        <TextField fx:id="roomTextField" promptText="Номер комнаты"/>
         <Button text="Войти!" onMouseClicked="#enterRoom"/>
     </VBox>
     <VBox prefWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-background-color: darkGrey"

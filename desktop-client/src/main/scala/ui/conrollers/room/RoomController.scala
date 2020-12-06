@@ -9,6 +9,7 @@ import javafx.scene.Node
 import javafx.scene.control.{CheckBox, ComboBox, Label}
 import javafx.scene.image.ImageView
 import javafx.scene.layout.{StackPane, TilePane}
+import javafx.scene.text.Text
 import media.{ImageSegment, Microphone, Playback, Webcam}
 import ui.conrollers.{Mediator, SceneType}
 import zio.stream._
@@ -26,6 +27,9 @@ class RoomController(
 
   @FXML
   var tilesPane: TilePane = _
+
+  @FXML
+  var roomNumberText: Text = _
 
   @FXML
   var debugCheckBox: CheckBox = _
@@ -238,6 +242,7 @@ class RoomController(
         useMicrophoneCheckBox.setSelected(settings.useMicrophone)
         usePlaybackCheckBox.setSelected(settings.usePlayback)
         useWebcamCheckBox.setSelected(settings.useWebcam)
+        roomNumberText.setText(s"Комната #${settings.roomId}")
         addTile(selfTileNode)
       }
     } yield ()
