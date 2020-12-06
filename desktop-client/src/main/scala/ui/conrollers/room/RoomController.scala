@@ -14,6 +14,7 @@ import ui.conrollers.{Mediator, SceneType}
 import zio.stream._
 import zio.{Fiber, Ref, Task, TaskManaged, UIO, ZIO}
 import ui.runOnFxThread
+import zio.blocking.Blocking
 
 import scala.util.Try
 
@@ -21,7 +22,7 @@ class RoomController(
                       mediator: Mediator,
                       val selfTileRef: Ref[Option[TileInfo]],
                       val tilesRef: Ref[Map[Byte, TileInfo]]
-                    )(implicit runtime: zio.Runtime[Any]) {
+                    )(implicit runtime: zio.Runtime[Blocking]) {
 
   @FXML
   var tilesPane: TilePane = _
@@ -244,7 +245,7 @@ class RoomController(
 }
 
 object RoomController {
-  def apply(mediator: Mediator)(implicit runtime: zio.Runtime[Any]): UIO[RoomController] =
+  def apply(mediator: Mediator)(implicit runtime: zio.Runtime[Blocking]): UIO[RoomController] =
     for {
       selfTile <- Ref.make[Option[TileInfo]](None)
       tiles <- Ref.make[Map[Byte, TileInfo]](Map.empty)

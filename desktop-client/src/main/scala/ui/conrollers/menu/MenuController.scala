@@ -3,9 +3,10 @@ package ui.conrollers.menu
 import javafx.fxml.FXML
 import javafx.scene.control.TextField
 import ui.conrollers.{Mediator, SceneType}
+import zio.blocking.Blocking
 import zio.{Runtime, Task}
 
-class MenuController(mediator: Mediator)(implicit runtime: Runtime[Any]) {
+class MenuController(mediator: Mediator)(implicit runtime: Runtime[Blocking]) {
   @FXML
   var nameTextField: TextField = _
 
