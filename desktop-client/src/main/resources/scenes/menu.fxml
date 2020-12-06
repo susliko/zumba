@@ -10,33 +10,59 @@
 <?import javafx.scene.text.Text?>
 
 <?import javafx.scene.layout.HBox?>
-<GridPane xmlns:fx="http://javafx.com/fxml" alignment="center">
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.Label?>
+<GridPane xmlns:fx="http://javafx.com/fxml"
+          alignment="center"
+>
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES" percentWidth="50.0"/>
         <ColumnConstraints hgrow="SOMETIMES" percentWidth="50.0"/>
     </columnConstraints>
     <rowConstraints>
-        <RowConstraints vgrow="NEVER"/>
-        <RowConstraints vgrow="ALWAYS"/>
+        <RowConstraints vgrow="SOMETIMES" percentHeight="35.0"/>
+        <RowConstraints vgrow="SOMETIMES" percentHeight="65.0"/>
     </rowConstraints>
-    <HBox GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2" style="-fx-background-color: black">
-        <TextField fx:id="nameTextField" promptText="Имя" onTextChange="#changeName"/>
+    <HBox GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="2" style="-fx-background-color: grey" alignment="CENTER" spacing="10">
+        <HBox alignment="CENTER">
+            <Label>Имя</Label>
+            <TextField fx:id="nameTextField" promptText="Имя" onTextChange="#changeName"/>
+        </HBox>
+        <HBox alignment="CENTER">
+            <Label>Микрофон</Label>
+            <CheckBox fx:id="useMicrophone" selected="true" onAction="#switchMicrophone">
+                <tooltip>
+                    <Tooltip text="Использовать микрофон"/>
+                </tooltip>
+            </CheckBox>
+        </HBox>
+        <HBox alignment="CENTER">
+            <Label>Камера</Label>
+            <CheckBox fx:id="useWebcam" selected="true" onAction="#switchWebcam">
+                <tooltip>
+                    <Tooltip text="Использовать камеру"/>
+                </tooltip>
+            </CheckBox>
+        </HBox>
     </HBox>
-    <VBox prefWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-background-color: lightGrey"
-          alignment="CENTER_LEFT" spacing="10">
+    <VBox prefWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"
+          alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: lightGrey">
         <padding>
             <Insets top="10" bottom="10" left="10" right="10"/>
         </padding>
-        <Text>Войти в существующую комнату</Text>
+        <Text>Войти в комнату</Text>
         <TextField fx:id="roomTextField" promptText="Номер комнаты"/>
-        <Button text="Войти!" onMouseClicked="#enterRoom"/>
+        <Text fx:id="enterInfoText" managed="false" visible="false" styleClass="error-message"/>
+        <Button fx:id="enterButton" text="Войти!" onMouseClicked="#enterRoom"/>
     </VBox>
-    <VBox prefWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" style="-fx-background-color: darkGrey"
-          alignment="CENTER_LEFT" spacing="10">
+    <VBox prefWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1"
+          alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: darkGrey">
         <padding>
             <Insets top="10" bottom="10" left="10" right="10"/>
         </padding>
         <Text>Создать комнату</Text>
-        <Button text="Создать!" onMouseClicked="#createRoom"/>
+        <Text fx:id="createInfoText" managed="false" visible="false"/>
+        <Button fx:id="createButton" text="Создать!" onMouseClicked="#createRoom"/>
     </VBox>
 </GridPane>

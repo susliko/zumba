@@ -1,6 +1,8 @@
 package ui.conrollers
 
 import java.awt.image.BufferedImage
+import java.io.{BufferedReader, InputStreamReader}
+import java.util.stream.Collectors
 
 import ui._
 import javafx.fxml.FXMLLoader
@@ -54,7 +56,7 @@ class Mediator(
     for {
       settings <- settingsRef.get
       userId <- supervisorClient.createUser(settings.name)
-      roomWithId <- supervisorClient.createRoom(userId)
+      roomWithId <- supervisorClient.createRoom(userId).onError(_ => supervisorClient.removeUser(userId).ignore)
       _ <- settingsRef.update(_.copy(
         userId = userId,
         roomId = roomWithId.room_id,
@@ -71,7 +73,7 @@ class Mediator(
     for {
       settings <- settingsRef.get
       userId <- supervisorClient.createUser(settings.name)
-      room <- supervisorClient.joinRoom(roomId, userId)
+      room <- supervisorClient.joinRoom(roomId, userId).onError(_ => supervisorClient.removeUser(userId).ignore)
       _ <- settingsRef.update(_.copy(
         userId = userId,
         roomId = roomId,
@@ -111,7 +113,8 @@ class Mediator(
           _ <- Task.foreach(maybeOldMicrophoneFiber)(_.interrupt)
           _ <- settingsRef.update(_.copy(useMicrophone = true))
         } yield ()
-      case _ => Task.unit
+      case _ =>
+        settingsRef.update(_.copy(useMicrophone = true))
     }
 
   def selectMicrophone(name: String): RIO[Blocking, Unit] =
@@ -187,8 +190,8 @@ class Mediator(
           _ <- settingsRef.update(_.copy(useWebcam = true))
         } yield ()
 
-      case None =>
-        Task.unit
+      case _ =>
+        settingsRef.update(_.copy(useWebcam = true))
     }
 
   def disableWebcam: Task[Unit] =
@@ -280,11 +283,13 @@ class Mediator(
           loader.setController(menuController)
           val root: GridPane = loader.load
           (activeController.set(Some(Controller.Menu(menuController))) *>
+            menuController.start *>
             runOnFxThread { () =>
               primaryStage.setScene(new Scene(root))
               primaryStage.show()
-              primaryStage.setWidth(600)
-              primaryStage.setHeight(400)
+              primaryStage.setMaximized(false)
+              primaryStage.setWidth(400)
+              primaryStage.setHeight(250)
             }).onError(x => UIO(println(x)))
 
         case SceneType.Room =>
@@ -300,6 +305,7 @@ class Mediator(
             }
             _ <- runOnFxThread { () =>
               primaryStage.setScene(scene)
+              primaryStage.setMaximized(true)
               primaryStage.show()
             }
             _ <- activeController.set(Some(Controller.Room(roomController)))
@@ -322,6 +328,11 @@ class Mediator(
 }
 
 object Mediator {
+  val names = Vector("Passimian", "Cubchoo", "Hypno", "Manectric", "Mandibuzz", "Morelull", "Emboar", "Ariados", "Solgaleo",
+    "Bibarel", "Whimsicott", "Wooloo", "Spiritomb", "Shuckle", "Togetic", "Celesteela", "Lugia", "Dunsparce", "Igglybuff",
+    "Primarina", "Runerigus", "Umbreon", "Remoraid", "Corphish", "Feebas", "Castform", "Machoke", "Kricketune", "Pidove",
+    "Flapple", "Golem", "Seedot", "Politoed", "Zygarde", "Magneton", "Pikipek", "Nidoqueen", "Bastiodon", "Slugma", "Chansey",
+  )
 
   def acquireMediator(
                        config: ZumbaConfig,
@@ -334,9 +345,10 @@ object Mediator {
       microphoneNames <- Microphone.names()
       playbackNames <- Playback.names()
       videoNames <- Webcam.names
+      name <- Task(names(Random.nextInt(names.size)))
       inputOptions <- Ref.make(
         Settings(
-          "Это я",
+          name,
           useMicrophone = true,
           usePlayback = true,
           useWebcam = true,

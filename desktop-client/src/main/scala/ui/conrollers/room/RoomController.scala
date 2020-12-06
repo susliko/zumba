@@ -146,9 +146,12 @@ class RoomController(
     StackPane.setAlignment(label, Pos.BOTTOM_RIGHT)
     label.setStyle("-fx-background-color: rgba(150, 150, 150, 0.7)")
     val tileNode = new StackPane(imageView, label)
-    tileNode.setStyle("-fx-border-color: blue; -fx-border-width: 1;")
-    //    tilesPane.setPrefRows()!!!
-    //    https://stackoverflow.com/questions/43369963/javafx-tile-pane-set-max-number-of-columns
+    tileNode.setStyle("-fx-background-color: rgba(150, 150, 150, 0.7)")
+    tilesPane.prefTileWidthProperty.set(400)
+    tilesPane.prefTileHeightProperty.set(300)
+    imageView.fitHeightProperty.bind(tilesPane.tileHeightProperty())
+    imageView.fitWidthProperty.bind(tilesPane.tileWidthProperty())
+    imageView.setPreserveRatio(true)
     tileNode
   }
 
