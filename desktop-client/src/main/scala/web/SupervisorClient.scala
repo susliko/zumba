@@ -1,7 +1,6 @@
 package web
 
 import io.circe.generic.JsonCodec
-import io.circe.generic.extras.Configuration
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, Json}
 import sttp.client3._

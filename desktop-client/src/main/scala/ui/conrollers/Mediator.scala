@@ -7,7 +7,7 @@ import javafx.fxml.FXMLLoader
 import javafx.scene.Scene
 import javafx.scene.layout.{BorderPane, GridPane}
 import javafx.stage.Stage
-import media.{ImageSegment, Microphone, Playback, Webcam, ZumbaConfig}
+import media.{AudioSegment, ImageSegment, Microphone, Playback, Webcam, ZumbaConfig}
 import ui.conrollers.menu.MenuController
 import ui.conrollers.room.RoomController
 import web.MediaClient
@@ -19,6 +19,7 @@ class Mediator(
                 config: ZumbaConfig,
                 primaryStage: Stage,
                 imageClient: MediaClient[ImageSegment],
+                audioClient: MediaClient[AudioSegment],
                 settingsRef: Ref[Settings],
                 activeController: Ref[Option[Controller]],
                 microphoneFiber: Ref[Option[Fiber[Throwable, Unit]]],
@@ -156,6 +157,7 @@ class Mediator(
     for {
       _ <- shutdownFiber(selfVideoFiber)
       _ <- shutdownFiber(imageSegmentsFiber)
+      _ <- shutdownFiber(imageSegmentsFiber)
       _ <- shutdownFiber(microphoneFiber)
       _ <- shutdownFiber(playbackFiber)
     } yield ()
@@ -167,6 +169,7 @@ class Mediator(
       case Controller.Room(room) =>
         for {
           _ <- shutdownFiber(selfVideoFiber)
+          _ <- shutdownFiber(imageSegmentsFiber)
           _ <- shutdownFiber(imageSegmentsFiber)
           _ <- shutdownFiber(microphoneFiber)
           _ <- shutdownFiber(playbackFiber)
@@ -221,7 +224,7 @@ class Mediator(
 
 object Mediator {
 
-  def acquireMediator(config: ZumbaConfig, primaryStage: Stage, imageClient: MediaClient[ImageSegment])(implicit runtime: Runtime[Any]): Task[Mediator] =
+  def acquireMediator(config: ZumbaConfig, primaryStage: Stage, imageClient: MediaClient[ImageSegment], audioClient: MediaClient[AudioSegment])(implicit runtime: Runtime[Any]): Task[Mediator] =
     for {
       microphoneNames <- Microphone.names()
       playbackNames <- Playback.names()
@@ -232,11 +235,12 @@ object Mediator {
       playbackFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
-    } yield new Mediator(config, primaryStage, imageClient, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber)
+    } yield new Mediator(config, primaryStage, imageClient, audioClient, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber)
 
   def apply(config: ZumbaConfig, primaryStage: Stage)(implicit runtime: Runtime[Any]): TaskManaged[Mediator] =
     for {
-      client <- MediaClient.managed[ImageSegment](config.localVideoPort)
-      mediator <- ZManaged.make(acquireMediator(config, primaryStage, client))(_.release)
+      imageClient <- MediaClient.managed[ImageSegment](config.localVideoPort)
+      audioClient <- MediaClient.managed[AudioSegment](config.localAudioPort)
+      mediator <- ZManaged.make(acquireMediator(config, primaryStage, imageClient, audioClient))(_.release)
     } yield mediator
 }
