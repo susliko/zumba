@@ -2,28 +2,25 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/susliko/zumba/server/room/common"
 	"github.com/susliko/zumba/server/room/conference"
 	"github.com/susliko/zumba/server/room/tcp"
 	"github.com/susliko/zumba/server/room/udp"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
-func run(logger *zap.SugaredLogger) error {
-	ctx := context.Background()
-
+func run(ctx context.Context, logger *zap.SugaredLogger, config *Config) error {
 	conferenceMap := conference.NewConferenceMap()
-
-	httpServerConfig := tcp.NewDefaultHTTPServerConfig()
-	httpServer := tcp.NewHTTPServer(logger, httpServerConfig, conferenceMap)
-
-	udpServerConfig := udp.NewDefaultServerConfig()
 	cache := udp.NewAddressCache()
-	updServer := udp.NewServer(logger, udpServerConfig, conferenceMap, cache)
+
+	httpServer := tcp.NewHTTPServer(logger, config.http, conferenceMap)
+	updServer := udp.NewServer(logger, config.udp, conferenceMap, cache)
 
 	ctx, cancel := context.WithCancel(ctx)
 	wg, ctx := errgroup.WithContext(ctx)
@@ -51,13 +48,19 @@ func run(logger *zap.SugaredLogger) error {
 }
 
 func main() {
+	ctx := context.Background()
+	config, err := LoadConfig(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	loggerConfig := common.NewDefaultLoggerConfig()
 	logger, err := common.NewLogger(loggerConfig)
 	if err != nil {
 		panic(err)
 	}
 
-	err = run(logger)
+	err = run(ctx, logger, config)
 	if err != nil {
 		logger.Errorf("%v", err)
 	}

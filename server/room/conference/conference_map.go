@@ -3,6 +3,8 @@ package conference
 import (
 	"errors"
 	"sync"
+
+	"github.com/susliko/zumba/server/room/common"
 )
 
 var (
@@ -45,7 +47,7 @@ func (m *ConferenceMap) AddUserToConference(conference uint8, user uint8) {
 	}
 }
 
-func (m *ConferenceMap) GetConferenceUsers(conference uint8) ([]uint8, error) {
+func (m *ConferenceMap) GetConferenceUsers(conference uint8) (common.JsonableUint8Slice, error) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 
@@ -53,7 +55,7 @@ func (m *ConferenceMap) GetConferenceUsers(conference uint8) ([]uint8, error) {
 		return nil, ConferenceNotFoundError
 	}
 
-	result := make([]uint8, 0, len(m.data[conference]))
+	result := make(common.JsonableUint8Slice, 0, len(m.data[conference]))
 	for user := range m.data[conference] {
 		result = append(result, user)
 	}
@@ -85,13 +87,13 @@ func (m *ConferenceMap) RemoveUserFromConference(conference uint8, user uint8) e
 	return nil
 }
 
-func (m *ConferenceMap) ListConferences() map[uint8][]uint8 {
+func (m *ConferenceMap) ListConferences() map[uint8]common.JsonableUint8Slice {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 
-	result := make(map[uint8][]uint8, len(m.data))
+	result := make(map[uint8]common.JsonableUint8Slice, len(m.data))
 	for conference := range m.data {
-		users := make([]uint8, 0, len(m.data[conference]))
+		users := make(common.JsonableUint8Slice, 0, len(m.data[conference]))
 		for user := range m.data[conference] {
 			users = append(users, user)
 		}

@@ -25,14 +25,14 @@ type userRequest struct {
 }
 
 type HTTPServerConfig struct {
-	Host string
-	Port uint16
+	Host string	 `config:"host"`
+	Port uint16	 `config:"ports"`
 }
 
 func NewDefaultHTTPServerConfig() *HTTPServerConfig {
 	return &HTTPServerConfig{
 		Host: "",
-		Port: 5000,
+		Port: 80,
 	}
 }
 
