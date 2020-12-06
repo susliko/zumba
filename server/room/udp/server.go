@@ -45,6 +45,7 @@ type Server struct {
 	config *ServerConfig
 	conferenceMap *conference.ConferenceMap
 	cache *AddressCache
+	lastMsgId uint64
 }
 
 func NewServer(
@@ -58,6 +59,7 @@ func NewServer(
 		config: config,
 		conferenceMap: conferenceMap,
 		cache: cache,
+		lastMsgId: 0,
 	}
 }
 
@@ -100,56 +102,60 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 				server.logger.Errorf("while reading from upd socket an err occurred: %v", err)
 				continue
 			}
-			server.logger.Infof("udp-packet-received: bytes=%d; from=%s", n, addr.String())
-
-			if n < 2 {
-				server.logger.Errorf("%d bytes is not enough to parse", n)
-				continue
-			}
+			server.logger.Infof("udp-packet-received: bytes=%d; from=%s; id=%d", n, addr.String(), server.lastMsgId)
 
 			tmp := make([]byte, n)
 			copy(tmp, buffer[:n])
-			msg, err := ParseMessageFromBytes(tmp)
-			if err != nil {
-				server.logger.Errorf("while parsing msg an error occurred: %v", err)
-				continue
-			}
-			server.cache.Save(msg.User, addr)
-			server.logger.Infof("received msg for conference %d from user %d", msg.Conference, msg.User)
 
-			users, err := server.conferenceMap.GetConferenceUsers(msg.Conference)
- 			if err != nil {
- 				server.logger.Errorf("while getting conference users an error occurred: %v", err)
- 				continue
-			}
-
-			for _, user := range users {
-				user := user
-				if user == msg.User {
-					continue
+			go func(tmp []byte, msgId uint64) {
+				logger := server.logger.With(zap.Uint64("msg_id", msgId))
+				msg, err := ParseMessageFromBytes(n, tmp)
+				if err != nil {
+					logger.Errorf("while parsing msg an error occurred: %v", err)
+					return
 				}
+				server.cache.Save(msg.User, addr)
+				logger = logger.With(zap.Uint8("conference", msg.Conference), zap.Uint8("user", msg.User))
+				logger.Infof("start sending msg")
 
-				go func(user uint8, bytes []byte) {
-					addr, isHaveAddr := server.cache.Get(user)
-					if !isHaveAddr {
-						server.logger.Errorf("can't find addr for user: %d", user)
-						return
-					}
+				users, err := server.conferenceMap.GetConferenceUsers(msg.Conference)
+				if err != nil {
+					logger.Errorf("while getting conference users an error occurred: %v", err)
+					return
+				}
+				logger.Debug("send msg to users: %v", users)
 
-					err = pc.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
-					if err != nil {
-						server.logger.Errorf("while setting udp-write deadline err occurred: %v", err)
-						return
+				for _, user := range users {
+					user := user
+					if user == msg.User {
+						logger.Debug("don't send msg to user: %d", user)
+						continue
 					}
+					logger.Debug("send msg to user: %d", user)
 
-					n, err = pc.WriteTo(bytes, addr)
-					if err != nil {
-						server.logger.Errorf("while udp=writing to %s an err occurred: %v", addr, err)
-						return
-					}
-					server.logger.Infof("udp-packet-written: bytes=%d to=%s", n, addr.String())
-				}(user, msg.Content)
-			}
+					go func(user uint8, bytes []byte) {
+						addr, isHaveAddr := server.cache.Get(user)
+						if !isHaveAddr {
+							logger.Errorf("can't find addr for user: %d", user)
+							return
+						}
+
+						err = pc.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+						if err != nil {
+							logger.Errorf("while setting udp-write deadline err occurred: %v", err)
+							return
+						}
+
+						n, err = pc.WriteTo(bytes, addr)
+						if err != nil {
+							logger.Errorf("while udp writing to %s an err occurred: %v", addr, err)
+							return
+						}
+						logger.Infof("udp-packet-written: bytes=%d to=%s", n, addr.String())
+					}(user, msg.Content)
+				}
+			}(tmp, server.lastMsgId)
+			server.lastMsgId += 1
 		}
 	})
 

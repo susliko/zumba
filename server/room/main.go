@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/susliko/zumba/server/room/common"
 	"github.com/susliko/zumba/server/room/conference"
 	"github.com/susliko/zumba/server/room/tcp"
 	"github.com/susliko/zumba/server/room/udp"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func run(logger *zap.SugaredLogger) error {
