@@ -35,6 +35,7 @@ libraryDependencies ++= Seq(
 mainClass in Compile := Some("ui.Main")
 discoveredMainClasses in Compile := Seq()
 
+enablePlugins(UniversalPlugin)
 enablePlugins(DebianPlugin)
 linuxPackageMappings in Debian := linuxPackageMappings.value
 
