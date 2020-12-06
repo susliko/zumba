@@ -21,6 +21,7 @@ class Mediator(
                 settingsRef: Ref[Settings],
                 activeController: Ref[Option[Controller]],
                 microphoneFiber: Ref[Option[Fiber[Throwable, Unit]]],
+                playbackFiber: Ref[Option[Fiber[Throwable, Unit]]],
                 selfVideoFiber: Ref[Option[Fiber[Throwable, Unit]]],
                 imageSegmentsFiber: Ref[Option[Fiber[Throwable, Unit]]],
                 imageSegmentClient: Ref[Option[MediaClient[ImageSegment]]],
@@ -51,7 +52,7 @@ class Mediator(
         for {
           selectedMicrophone <- settingsRef.get.map(_.selectedMicrophone)
           // TODO: Send audio to server here
-          fiber <- Microphone.managedByName(selectedMicrophone).useForever.forkDaemon
+          fiber <- Microphone.managedByName(selectedMicrophone).useForever .onError(x => UIO(println(x.untraced.prettyPrint))) .forkDaemon
           maybeOldMicrophoneFiber <- microphoneFiber.getAndSet(Some(fiber))
           _ <- Task.foreach(maybeOldMicrophoneFiber)(_.interrupt)
           _ <- settingsRef.update(_.copy(useMicrophone = true))
@@ -72,6 +73,35 @@ class Mediator(
       _ <- settingsRef.update(_.copy(useMicrophone = false))
     } yield ()
 
+  // ***** Playback *****
+
+  def enablePlayback: Task[Unit] =
+    activeController.get.flatMap {
+      case Some(Controller.Room(room)) =>
+        for {
+          selectedPlayback <- settingsRef.get.map(_.selectedPlayback)
+          // TODO: Send audio to server here
+          fiber <- Playback.managedByName(selectedPlayback).useForever .onError(x => UIO(println(x.untraced.prettyPrint))) .forkDaemon
+          maybeOldPlaybackFiber <- playbackFiber.getAndSet(Some(fiber))
+          _ <- Task.foreach(maybeOldPlaybackFiber)(_.interrupt)
+          _ <- settingsRef.update(_.copy(usePlayback = true))
+        } yield ()
+      case _ => Task.unit
+    }
+
+  def selectPlayback(name: String): Task[Unit] =
+    for {
+      _ <- shutdownFiber(playbackFiber)
+      settings <- settingsRef.updateAndGet(_.copy(selectedPlayback = name))
+      _ <- enablePlayback.when(settings.usePlayback)
+    } yield ()
+
+  def disablePlayback: Task[Unit] =
+    for {
+      _ <- shutdownFiber(playbackFiber)
+      _ <- settingsRef.update(_.copy(usePlayback = false))
+    } yield ()
+
   // ***** Webcam *****
 
   def enableWebcam: Task[Unit] =
@@ -81,14 +111,15 @@ class Mediator(
           selectedWebcam <- settingsRef.get.map(_.selectedWebcam)
           // TODO: Send video to server here
           fiber <- Webcam.managedByName(selectedWebcam).use(webcam =>
-            imageSegmentClient.get.flatMap { maybeClient =>
-              Task.foreach(maybeClient) { client =>
-                webcam.stream.run(
-                  room.selfVideoSink
-                    .zipPar(client.sendSink(config.rumbaHost, config.rumbaVideoPort).contramapChunks(images => images.flatMap(image => ImageSegment.fromImage(image, config.roomId, config.userId))))
-                )
-              }
-            }
+            //            imageSegmentClient.get.flatMap { maybeClient =>
+            //              Task.foreach(maybeClient) { client =>
+            //                webcam.stream.run(
+            //                  room.selfVideoSink
+            //                    .zipPar(client.sendSink(config.rumbaHost, config.rumbaVideoPort).contramapChunks(images => images.flatMap(image => ImageSegment.fromImage(image, config.roomId, config.userId))))
+            //                )
+            //              }
+            //            }
+            webcam.stream.run(room.selfVideoSink)
           ).unit.forkDaemon
           maybeOldSelfVideoFiber <- selfVideoFiber.getAndSet(Some(fiber))
           _ <- Task.foreach(maybeOldSelfVideoFiber)(_.interrupt)
@@ -134,6 +165,8 @@ class Mediator(
         for {
           _ <- shutdownFiber(selfVideoFiber)
           _ <- shutdownFiber(imageSegmentsFiber)
+          _ <- shutdownFiber(microphoneFiber)
+          _ <- shutdownFiber(playbackFiber)
         } yield ()
     }
 
@@ -172,13 +205,16 @@ class Mediator(
             }
             _ <- activeController.set(Some(Controller.Room(roomController)))
             _ <- roomController.start
-            fiber <- MediaClient
-              .managed[ImageSegment](config.localVideoPort)
-              .use(client =>
-                imageSegmentClient.set(Some(client)) *>
-                  client.acceptStream(config.videoBufSize).run(roomController.imageSegmentsSink)
-              )
-              .forkDaemon
+            //            fiber <- MediaClient
+            //              .managed[ImageSegment](config.localVideoPort)
+            //              .use(client =>
+            //                imageSegmentClient.set(Some(client)) *>
+            //                  client
+            //                    .acceptStream(config.videoBufSize * 10)
+            //                    .run(roomController.imageSegmentsSink)
+            //              )
+            //              .forkDaemon
+            fiber <- Task.never.forkDaemon
             maybeOldFiber <- imageSegmentsFiber.getAndSet(Some(fiber))
             _ <- Task.foreach(maybeOldFiber)(_.interrupt)
           } yield ()).onError(x => UIO(println(x.prettyPrint)))
@@ -191,11 +227,12 @@ object Mediator {
       microphoneNames <- Microphone.names()
       playbackNames <- Playback.names()
       videoNames <- Webcam.names
-      inputOptions <- Ref.make(Settings("Это я", useMicrophone = true, usePlayback = false, useWebcam = true, microphoneNames.head, playbackNames.head, videoNames.head))
+      inputOptions <- Ref.make(Settings("Это я", useMicrophone = true, usePlayback = true, useWebcam = true, microphoneNames.head, playbackNames.head, videoNames.head))
       activeController <- Ref.make[Option[Controller]](None)
-      selfMicrophoneFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
+      microphoneFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
+      playbackFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       selfVideoFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       videoSegmentsFiber <- Ref.make[Option[Fiber[Throwable, Unit]]](None)
       imageSegmentClient <- Ref.make[Option[MediaClient[ImageSegment]]](None)
-    } yield new Mediator(config, primaryStage, inputOptions, activeController, selfMicrophoneFiber, selfVideoFiber, videoSegmentsFiber, imageSegmentClient)
+    } yield new Mediator(config, primaryStage, inputOptions, activeController, microphoneFiber, playbackFiber, selfVideoFiber, videoSegmentsFiber, imageSegmentClient)
 }
