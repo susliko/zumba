@@ -1,7 +1,7 @@
 # `Zumba` video-chat
 ## Zumba provides
 - creating and joining conversation rooms
-- capturing audio from any connected device
+- capturing audio from any connected device with microphone
 - capturing video from a webcam
 - transferring audio and video to all room participants
 - playing sound and displaying video of all participants
