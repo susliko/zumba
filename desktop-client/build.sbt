@@ -28,8 +28,9 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-generic-extras",
   "io.circe" %% "circe-parser"
-).map(_ % "0.14.0-M1")
+).map(_ % "0.13.0")
 
 mainClass in Compile := Some("ui.Main")
 discoveredMainClasses in Compile := Seq()
