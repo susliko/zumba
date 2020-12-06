@@ -98,7 +98,7 @@ object ImageSegment {
   def fromImage(image: BufferedImage,
                 roomId: Byte,
                 userId: Byte,
-                nTiles: Byte = 2): Chunk[ImageSegment] = {
+                nTiles: Byte = 1): Chunk[ImageSegment] = {
     val tileW = image.getWidth / nTiles;
     val tileH = image.getHeight / nTiles;
     Chunk.fromIterable(

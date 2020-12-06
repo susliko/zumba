@@ -62,9 +62,8 @@
                 <Insets top="10" bottom="10" left="10" right="10"/>
             </padding>
             <!-- Room number -->
-            <Text GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="2"
+            <Text GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="3"
                   fx:id="roomNumberText" textAlignment="CENTER"/>
-            <Button GridPane.rowIndex="0" GridPane.columnIndex="2" text="Копировать"/>
 
             <!-- Microphone -->
             <Label GridPane.rowIndex="1" GridPane.columnIndex="0">Микро</Label>

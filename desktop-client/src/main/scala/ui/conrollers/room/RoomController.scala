@@ -247,9 +247,24 @@ class RoomController(
         selectMicrophoneComboBox.getItems.setAll(microphoneNames: _*)
         selectPlaybackComboBox.getItems.setAll(playbackNames: _*)
         selectWebcamComboBox.getItems.setAll(webcamNames: _*)
-        selectMicrophoneComboBox.setValue(settings.selectedMicrophone)
-        selectPlaybackComboBox.setValue(settings.selectedPlayback)
-        selectWebcamComboBox.setValue(settings.selectedWebcam)
+        settings.selectedMicrophone match {
+          case Some(value) =>
+            selectMicrophoneComboBox.setValue(value)
+          case None =>
+            useMicrophoneCheckBox.setDisable(true)
+        }
+        settings.selectedPlayback match {
+          case Some(value) =>
+            selectPlaybackComboBox.setValue(value)
+          case None =>
+            usePlaybackCheckBox.setDisable(true)
+        }
+        settings.selectedWebcam match {
+          case Some(value) =>
+            selectWebcamComboBox.setValue(value)
+          case None =>
+            useWebcamCheckBox.setDisable(true)
+        }
         useMicrophoneCheckBox.setSelected(settings.useMicrophone)
         usePlaybackCheckBox.setSelected(settings.usePlayback)
         useWebcamCheckBox.setSelected(settings.useWebcam)

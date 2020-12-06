@@ -95,7 +95,7 @@ class Mediator(
           selectedMicrophone <- settingsRef.get.map(_.selectedMicrophone)
           settings <- settingsRef.get
           // TODO: Send audio to server here
-          fiber <- Microphone.managedByName(selectedMicrophone)
+          fiber <- Microphone.managedByName(selectedMicrophone.get)
             .use(mic =>
               mic
                 .stream(config.audioBufSize)
@@ -120,7 +120,7 @@ class Mediator(
   def selectMicrophone(name: String): RIO[Blocking, Unit] =
     for {
       _ <- shutdownFiber(microphoneFiber)
-      settings <- settingsRef.updateAndGet(_.copy(selectedMicrophone = name))
+      settings <- settingsRef.updateAndGet(_.copy(selectedMicrophone = Some(name)))
       _ <- enableMicrophone.when(settings.useMicrophone)
     } yield ()
 
@@ -138,7 +138,7 @@ class Mediator(
         for {
           selectedPlayback <- settingsRef.get.map(_.selectedPlayback)
           // TODO: Send audio to server here
-          fiber <- Playback.managedByName(selectedPlayback).use(play =>
+          fiber <- Playback.managedByName(selectedPlayback.get).use(play =>
             audioClient
               .acceptStream(config.audioBufSize * 8)
               .tap(
@@ -160,7 +160,7 @@ class Mediator(
   def selectPlayback(name: String): Task[Unit] =
     for {
       _ <- shutdownFiber(playbackFiber)
-      settings <- settingsRef.updateAndGet(_.copy(selectedPlayback = name))
+      settings <- settingsRef.updateAndGet(_.copy(selectedPlayback = Some(name)))
       _ <- enablePlayback.when(settings.usePlayback)
     } yield ()
 
@@ -179,7 +179,7 @@ class Mediator(
           selectedWebcam <- settingsRef.get.map(_.selectedWebcam)
           // TODO: Send video to server here
           settings <- settingsRef.get
-          fiber <- Webcam.managedByName(selectedWebcam).use(webcam =>
+          fiber <- Webcam.managedByName(selectedWebcam.get).use(webcam =>
             webcam.stream.run(
               room.selfVideoSink
                 .zipPar(imageClient.sendSink(settings.workerHost, settings.workerVideoPort).contramapChunks(images => images.flatMap(image => ImageSegment.fromImage(image, settings.roomId.toByte, settings.userId.toByte))))
@@ -203,7 +203,7 @@ class Mediator(
   def selectWebcam(name: String): Task[Unit] =
     for {
       _ <- shutdownFiber(selfVideoFiber)
-      settings <- settingsRef.updateAndGet(_.copy(selectedWebcam = name))
+      settings <- settingsRef.updateAndGet(_.copy(selectedWebcam = Some(name)))
       _ <- enableWebcam.when(settings.useWebcam)
     } yield ()
 
@@ -349,12 +349,12 @@ object Mediator {
       inputOptions <- Ref.make(
         Settings(
           name,
-          useMicrophone = true,
-          usePlayback = true,
-          useWebcam = true,
-          microphoneNames.head,
-          playbackNames.head,
-          videoNames.head,
+          useMicrophone = microphoneNames.nonEmpty,
+          usePlayback = playbackNames.nonEmpty,
+          useWebcam = videoNames.nonEmpty,
+          microphoneNames.headOption,
+          playbackNames.headOption,
+          videoNames.headOption,
           userId = new UByte(0),
           roomId = new UByte(0),
           workerHost = config.rumbaHost,
