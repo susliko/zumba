@@ -18,11 +18,11 @@ class Playback(line: SourceDataLine) {
 }
 
 object Playback {
-  def names: Task[List[String]] =
+  def names(audioFormat: AudioFormat = defaultAudioFormat): Task[List[String]] =
     Task {
       AudioSystem.getMixerInfo.toList
         .filter { info =>
-          Try(AudioSystem.getSourceDataLine(defaultAudioFormat, info)).isSuccess
+          Try(AudioSystem.getSourceDataLine(audioFormat, info)).isSuccess
         }
         .map(_.getDescription)
     }
@@ -34,7 +34,7 @@ object Playback {
         val mixerInfos = NonEmptyList
           .fromList(
             AudioSystem.getMixerInfo.toList.filter(
-              info => Try(AudioSystem.getTargetDataLine(format, info)).isSuccess
+              info => Try(AudioSystem.getSourceDataLine(format, info)).isSuccess
             )
           )
           .getOrElse(

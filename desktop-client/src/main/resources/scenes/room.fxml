@@ -10,6 +10,13 @@
 <?import javafx.scene.layout.TilePane?>
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.text.Text?>
 <BorderPane
         xmlns="http://javafx.com/javafx"
         xmlns:fx="http://javafx.com/fxml"
@@ -22,12 +29,10 @@
         </HBox>
     </top>
     <left>
-        <VBox style="-fx-background-color: #333333; -fx-padding: 5 5 5 5" prefWidth="30" alignment="BOTTOM_CENTER">
-            <CheckBox fx:id="debugCheckBox" style="-fx-label-padding: 0">
-                <tooltip>
-                    <Tooltip text="Дебаг"/>
-                </tooltip>
-            </CheckBox>
+        <VBox fx:id="debugPanel" alignment="TOP_CENTER" visible="${debugCheckBox.selected}"
+              managed="${debugCheckBox.selected}">
+            <Button fx:id="addOne" text="+" onAction="#addOne"/>
+            <Button fx:id="removeOne" text="-" onAction="#removeOne"/>
         </VBox>
     </left>
     <center>
@@ -37,9 +42,87 @@
         </ScrollPane>
     </center>
     <right>
-        <VBox fx:id="debugPanel" alignment="TOP_CENTER" visible="${debugCheckBox.selected}" managed="${debugCheckBox.selected}">
-            <Button fx:id="addOne" text="+" onAction="#addOne"/>
-            <Button fx:id="removeOne" text="-" onAction="#removeOne"/>
-        </VBox>
+        <GridPane maxWidth="250" hgap="5" vgap="5">
+            <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES"/>
+                <ColumnConstraints hgrow="SOMETIMES"/>
+                <ColumnConstraints hgrow="SOMETIMES" maxWidth="150"/>
+            </columnConstraints>
+            <rowConstraints>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints/>
+                <RowConstraints vgrow="ALWAYS"/>
+                <RowConstraints/>
+            </rowConstraints>
+            <padding>
+                <Insets top="10" bottom="10" left="10" right="10"/>
+            </padding>
+            <!-- Room number -->
+            <Text GridPane.rowIndex="0" GridPane.columnIndex="0" GridPane.columnSpan="3"
+                  fx:id="roomNumberText" textAlignment="CENTER"/>
+
+            <!-- Microphone -->
+            <Label GridPane.rowIndex="1" GridPane.columnIndex="0">Микро</Label>
+            <CheckBox GridPane.rowIndex="1" GridPane.columnIndex="1"
+                      fx:id="useMicrophoneCheckBox"
+                      style="-fx-label-padding: 0"
+                      onMouseClicked="#switchMicrophone">
+                <tooltip>
+                    <Tooltip text="Использовать микрофон"/>
+                </tooltip>
+            </CheckBox>
+            <ComboBox GridPane.rowIndex="1" GridPane.columnIndex="2"
+                      fx:id="selectMicrophoneComboBox"
+                      onAction="#selectMicrophone"/>
+
+            <!-- Playback -->
+            <Label GridPane.rowIndex="2" GridPane.columnIndex="0">Звук</Label>
+            <CheckBox GridPane.rowIndex="2" GridPane.columnIndex="1"
+                      fx:id="usePlaybackCheckBox"
+                      style="-fx-label-padding: 0"
+                      onMouseClicked="#switchPlayback">
+                <tooltip>
+                    <Tooltip text="Использовать звук"/>
+                </tooltip>
+            </CheckBox>
+            <ComboBox GridPane.rowIndex="2" GridPane.columnIndex="2"
+                      fx:id="selectPlaybackComboBox"
+                      onAction="#selectPlayback"/>
+
+            <!-- Video -->
+            <Label GridPane.rowIndex="3" GridPane.columnIndex="0">Видео</Label>
+            <CheckBox GridPane.rowIndex="3" GridPane.columnIndex="1"
+                      fx:id="useWebcamCheckBox"
+                      style="-fx-label-padding: 0"
+                      onMouseClicked="#switchWebcam">
+                <tooltip>
+                    <Tooltip text="Использовать камеру"/>
+                </tooltip>
+            </CheckBox>
+            <ComboBox GridPane.rowIndex="3" GridPane.columnIndex="2"
+                      fx:id="selectWebcamComboBox"
+                      onAction="#selectWebcam"/>
+
+            <!-- Debug -->
+            <Label GridPane.rowIndex="4" GridPane.columnIndex="0">Дебаг</Label>
+            <CheckBox GridPane.rowIndex="4" GridPane.columnIndex="1"
+                      fx:id="debugCheckBox"
+                      style="-fx-label-padding: 0">
+                <tooltip>
+                    <Tooltip text="Дебаг"/>
+                </tooltip>
+            </CheckBox>
+
+            <Pane GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="3"/>
+
+            <!-- Leave -->
+            <Button GridPane.rowIndex="6" GridPane.columnIndex="2"
+                    fx:id="leaveButton"
+                    text="Выйти"
+                    onMouseClicked="#leave"/>
+        </GridPane>
     </right>
 </BorderPane>
