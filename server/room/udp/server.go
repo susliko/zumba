@@ -24,7 +24,7 @@ func NewDefaultServerConfig() *ServerConfig {
 		AudioPort:     5001,
 		VideoPort:     5002,
 		TextPort:      5003,
-		MaxBufferSize: 8192,
+		MaxBufferSize: 32768,
 	}
 }
 
