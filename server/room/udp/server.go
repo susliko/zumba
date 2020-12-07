@@ -66,21 +66,21 @@ func NewServer(
 func (server *Server) Run(ctx context.Context) error {
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
-		return server.runSocket(ctx, server.config.AudioAddress())
+		return server.runSocket(ctx, server.config.AudioAddress(), AudioType)
 	})
 
 	wg.Go(func() error {
-		return server.runSocket(ctx, server.config.VideoAddress())
+		return server.runSocket(ctx, server.config.VideoAddress(), VideoType)
 	})
 
 	wg.Go(func() error {
-		return server.runSocket(ctx, server.config.TextAddress())
+		return server.runSocket(ctx, server.config.TextAddress(), TextType)
 	})
 
 	return wg.Wait()
 }
 
-func (server *Server) runSocket(ctx context.Context, address string) error {
+func (server *Server) runSocket(ctx context.Context, address string, addressType AddressType) error {
 	pc, err := net.ListenPacket("udp", address)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 					logger.Errorf("while parsing msg an error occurred: %v", err)
 					return
 				}
-				server.cache.Save(msg.User, addr)
+				server.cache.Save(msg.User, addressType, addr)
 				logger = logger.With(zap.Uint8("conference", msg.Conference), zap.Uint8("user", msg.User))
 				if n <= 2 {
 					// This is just ACK message, without data
@@ -140,7 +140,7 @@ func (server *Server) runSocket(ctx context.Context, address string) error {
 
 					go func(user uint8, bytes []byte) {
 						logger.Debugf("get addr for user %d", user)
-						addr, isHaveAddr := server.cache.Get(user)
+						addr, isHaveAddr := server.cache.Get(user, addressType)
 						if !isHaveAddr {
 							logger.Errorf("can't find addr for user: %d", user)
 							return

@@ -13,13 +13,13 @@ func TestAddressCache(t *testing.T) {
 	addr := iaddrs[0]
 
 	addressCache := NewAddressCache()
-	addressCache.Save(1, addr)
+	addressCache.Save(1, AudioType, addr)
 
-	getAddr, isOk := addressCache.Get(1)
+	getAddr, isOk := addressCache.Get(1, AudioType)
 	assert.Equal(t, addr, getAddr)
 	assert.Equal(t, isOk, true)
 
-	getAddr, isOk = addressCache.Get(2)
+	getAddr, isOk = addressCache.Get(2, AudioType)
 	assert.Nil(t, getAddr)
 	assert.Equal(t, isOk, false)
 }
