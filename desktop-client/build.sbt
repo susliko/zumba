@@ -35,6 +35,7 @@ libraryDependencies ++= Seq(
 mainClass in Compile := Some("ui.Main")
 discoveredMainClasses in Compile := Seq()
 
+enablePlugins(UniversalPlugin)
 enablePlugins(DebianPlugin)
 linuxPackageMappings in Debian := linuxPackageMappings.value
 
@@ -57,4 +58,4 @@ assemblyMergeStrategy in assembly := {
   case x                             => MergeStrategy.first
 }
 
-mainClass in assembly := Some("media.Main")
+mainClass in assembly := Some("media.MediaMain")

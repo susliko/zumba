@@ -146,9 +146,12 @@ class RoomController(
     StackPane.setAlignment(label, Pos.BOTTOM_RIGHT)
     label.setStyle("-fx-background-color: rgba(150, 150, 150, 0.7)")
     val tileNode = new StackPane(imageView, label)
-    tileNode.setStyle("-fx-border-color: blue; -fx-border-width: 1;")
-    //    tilesPane.setPrefRows()!!!
-    //    https://stackoverflow.com/questions/43369963/javafx-tile-pane-set-max-number-of-columns
+    tileNode.setStyle("-fx-background-color: rgba(150, 150, 150, 0.7)")
+    tilesPane.prefTileWidthProperty.set(400)
+    tilesPane.prefTileHeightProperty.set(300)
+    imageView.fitHeightProperty.bind(tilesPane.tileHeightProperty())
+    imageView.fitWidthProperty.bind(tilesPane.tileWidthProperty())
+    imageView.setPreserveRatio(true)
     tileNode
   }
 
@@ -244,9 +247,24 @@ class RoomController(
         selectMicrophoneComboBox.getItems.setAll(microphoneNames: _*)
         selectPlaybackComboBox.getItems.setAll(playbackNames: _*)
         selectWebcamComboBox.getItems.setAll(webcamNames: _*)
-        selectMicrophoneComboBox.setValue(settings.selectedMicrophone)
-        selectPlaybackComboBox.setValue(settings.selectedPlayback)
-        selectWebcamComboBox.setValue(settings.selectedWebcam)
+        settings.selectedMicrophone match {
+          case Some(value) =>
+            selectMicrophoneComboBox.setValue(value)
+          case None =>
+            useMicrophoneCheckBox.setDisable(true)
+        }
+        settings.selectedPlayback match {
+          case Some(value) =>
+            selectPlaybackComboBox.setValue(value)
+          case None =>
+            usePlaybackCheckBox.setDisable(true)
+        }
+        settings.selectedWebcam match {
+          case Some(value) =>
+            selectWebcamComboBox.setValue(value)
+          case None =>
+            useWebcamCheckBox.setDisable(true)
+        }
         useMicrophoneCheckBox.setSelected(settings.useMicrophone)
         usePlaybackCheckBox.setSelected(settings.usePlayback)
         useWebcamCheckBox.setSelected(settings.useWebcam)

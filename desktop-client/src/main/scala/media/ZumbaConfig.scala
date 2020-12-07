@@ -57,7 +57,7 @@ object ZumbaConfig {
     val rumbaHost = findVar(vars, "rumbaHost", identity, "143.110.168.156")
     val rumbaAudioPort = findVar(vars, "rumbaAudioPort", _.toInt, 5001)
     val rumbaVideoPort = findVar(vars, "rumbaVideoPort", _.toInt, 5002)
-    val audioBufSize = findVar(vars, "audioBufSize", _.toInt, 1024)
+    val audioBufSize = findVar(vars, "audioBufSize", _.toInt, 4096)
     val sampleRate = findVar(vars, "sampleRate", _.toFloat, 16000f)
     val logPackets = findVar(vars, "logPackets", _.toBoolean, false)
 
